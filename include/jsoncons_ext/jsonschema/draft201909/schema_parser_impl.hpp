@@ -1306,7 +1306,7 @@ namespace draft201909 {
                     ref.second->set_referred_schema(it->second->clone(ref.second->get_base_uri()));
                 }
             }
-            root_->resolve_recursive_refs(root_->schema_path(), root_->is_recursive_anchor(), *this);
+            root_->resolve_recursive_refs(root_->schema_path(), root_->is_recursive_anchor(), root_.get());
         }
 
         void insert_unknown_keyword(const schema_location& uri, 
