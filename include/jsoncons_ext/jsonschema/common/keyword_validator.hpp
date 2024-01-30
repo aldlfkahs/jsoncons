@@ -106,12 +106,18 @@ namespace jsonschema {
     template <class Json>
     class keyword_validator_base : public keyword_validator<Json>
     {
+        std::string location_;
         uri schema_path_;
     public:
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         keyword_validator_base(const uri& schema_path)
-            : schema_path_(schema_path)
+            : location_(), schema_path_(schema_path)
+        {
+        }
+
+        keyword_validator_base(const std::string& location, const uri& schema_path)
+            : location_(location), schema_path_(schema_path)
         {
         }
 
@@ -119,6 +125,11 @@ namespace jsonschema {
         keyword_validator_base(keyword_validator_base&&) = default;
         keyword_validator_base& operator=(const keyword_validator_base&) = delete;
         keyword_validator_base& operator=(keyword_validator_base&&) = default;
+
+        const std::string& location() const
+        {
+            return location_;
+        }
 
         const uri& schema_path() const override
         {
@@ -312,18 +323,29 @@ namespace jsonschema {
         using schema_validator_type = typename std::unique_ptr<schema_validator<Json>>;
         using keyword_validator_type = typename std::unique_ptr<keyword_validator<Json>>;
 
+        std::string location_;
         uri schema_path_;
         bool value_;
 
     public:
-        boolean_schema_validator(const uri& schema_path, bool value)
+        /*boolean_schema_validator(const uri& schema_path, bool value)
             : schema_path_(schema_path), value_(value)
+        {
+        }*/
+
+        boolean_schema_validator(const std::string& location, const uri& schema_path, bool value)
+            : location_(location), schema_path_(schema_path), value_(value)
         {
         }
 
         jsoncons::optional<Json> get_default_value() const override
         {
             return jsoncons::optional<Json>{};
+        }
+
+        const std::string& location() const
+        {
+            return location_;
         }
 
         const uri& schema_path() const override
@@ -338,7 +360,7 @@ namespace jsonschema {
 
         schema_validator_type clone(const uri& base_uri) const final
         {
-            return jsoncons::make_unique<boolean_schema_validator>(schema_path_.resolve(base_uri), value_);
+            return jsoncons::make_unique<boolean_schema_validator>("#", schema_path_.resolve(base_uri), value_);
         }
 
     private:
@@ -370,15 +392,25 @@ namespace jsonschema {
         using schema_validator_type = typename std::unique_ptr<schema_validator<Json>>;
         using keyword_validator_type = typename std::unique_ptr<keyword_validator<Json>>;
 
+        std::string location_;
         uri schema_path_;
         std::vector<keyword_validator_type> validators_;
         Json default_value_;
         bool is_recursive_anchor_;
 
     public:
-        object_schema_validator(const uri& schema_path, std::vector<keyword_validator_type>&& validators, Json&& default_value,
+        /*object_schema_validator(const uri& schema_path, std::vector<keyword_validator_type>&& validators, Json&& default_value,
             bool is_recursive_anchor = false)
             : schema_path_(schema_path),
+              validators_(std::move(validators)),
+              default_value_(std::move(default_value)),
+              is_recursive_anchor_(is_recursive_anchor)
+        {
+        }*/
+
+        object_schema_validator(const std::string& location, const uri& schema_path, std::vector<keyword_validator_type>&& validators, Json&& default_value,
+            bool is_recursive_anchor = false)
+            : location_(location), schema_path_(schema_path),
               validators_(std::move(validators)),
               default_value_(std::move(default_value)),
               is_recursive_anchor_(is_recursive_anchor)
@@ -388,6 +420,11 @@ namespace jsonschema {
         jsoncons::optional<Json> get_default_value() const override
         {
             return default_value_;
+        }
+
+        const std::string& location() const
+        {
+            return location_;
         }
 
         const uri& schema_path() const override
@@ -408,7 +445,7 @@ namespace jsonschema {
                 validators.push_back(validator->clone(base_uri));
             }
 
-            return jsoncons::make_unique<object_schema_validator>(schema_path_.resolve(base_uri), std::move(validators), Json(default_value_), is_recursive_anchor_);
+            return jsoncons::make_unique<object_schema_validator>("#", schema_path_.resolve(base_uri), std::move(validators), Json(default_value_), is_recursive_anchor_);
         }
 
     private:
