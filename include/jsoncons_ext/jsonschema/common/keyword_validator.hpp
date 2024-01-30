@@ -328,11 +328,6 @@ namespace jsonschema {
         bool value_;
 
     public:
-        /*boolean_schema_validator(const uri& schema_path, bool value)
-            : schema_path_(schema_path), value_(value)
-        {
-        }*/
-
         boolean_schema_validator(const std::string& location, const uri& schema_path, bool value)
             : location_(location), schema_path_(schema_path), value_(value)
         {
@@ -399,15 +394,6 @@ namespace jsonschema {
         bool is_recursive_anchor_;
 
     public:
-        /*object_schema_validator(const uri& schema_path, std::vector<keyword_validator_type>&& validators, Json&& default_value,
-            bool is_recursive_anchor = false)
-            : schema_path_(schema_path),
-              validators_(std::move(validators)),
-              default_value_(std::move(default_value)),
-              is_recursive_anchor_(is_recursive_anchor)
-        {
-        }*/
-
         object_schema_validator(const std::string& location, const uri& schema_path, std::vector<keyword_validator_type>&& validators, Json&& default_value,
             bool is_recursive_anchor = false)
             : location_(location), schema_path_(schema_path),
