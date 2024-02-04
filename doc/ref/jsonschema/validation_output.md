@@ -17,7 +17,7 @@ expressed as a URI fragment-encoded JSON Pointer.
     const std::string& message() const
 An error message that is produced by the validation.
 
-    const uri& schema_path() const
+    const uri& reference() const
 The absolute, dereferenced location of the validating keyword,
 expressed as an absolute URI using the canonical URI of the 
 relevant schema.

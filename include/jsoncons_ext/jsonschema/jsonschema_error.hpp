@@ -44,29 +44,29 @@ namespace jsonschema {
     class validation_output 
     {
         std::string keyword_;
-        uri schema_path_;
+        uri reference_;
         std::string instance_location_;
         std::string message_;
         std::vector<validation_output> nested_errors_;
     public:
         validation_output(std::string keyword,
-                          uri schema_path,
+                          uri reference,
                           std::string instance_location,
                           std::string message)
             : keyword_(std::move(keyword)), 
-              schema_path_(std::move(schema_path)),
+              reference_(std::move(reference)),
               instance_location_(std::move(instance_location)),
               message_(std::move(message))
         {
         }
 
         validation_output(const std::string& keyword,
-                          const uri& schema_path,
+                          const uri& reference,
                           const std::string& instance_location,
                           const std::string& message,
                           const std::vector<validation_output>& nested_errors)
             : keyword_(keyword),
-              schema_path_(schema_path),
+              reference_(reference),
               instance_location_(instance_location), 
               message_(message),
               nested_errors_(nested_errors)
@@ -83,19 +83,19 @@ namespace jsonschema {
             return message_;
         }
 
-        const uri& schema_path() const
+        const uri& reference() const
         {
-            return schema_path_;
+            return reference_;
         }
 
         const std::string keyword_location() const
         {
-            return "#" + std::string(schema_path_.fragment());
+            return "#" + std::string(reference_.fragment());
         }
 
         const std::string absolute_keyword_location() const
         {
-            return schema_path_.string();
+            return reference_.string();
         }
 
         const std::string& keyword() const

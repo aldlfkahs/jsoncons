@@ -68,7 +68,7 @@ namespace jsonschema {
     public:
         virtual ~validator_base() = default;
 
-        virtual const uri& schema_path() const = 0;
+        virtual const uri& reference() const = 0;
 
         void resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas)
         {
@@ -100,18 +100,18 @@ namespace jsonschema {
     public:
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
-        virtual keyword_validator_type clone(const uri& base_uri) const = 0;
+        virtual keyword_validator_type make_validator(const uri& base_uri) const = 0;
     };
 
     template <class Json>
     class keyword_validator_base : public keyword_validator<Json>
     {
-        uri schema_path_;
+        uri reference_;
     public:
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
-        keyword_validator_base(const uri& schema_path)
-            : schema_path_(schema_path)
+        keyword_validator_base(const uri& reference)
+            : reference_(reference)
         {
         }
 
@@ -120,9 +120,9 @@ namespace jsonschema {
         keyword_validator_base& operator=(const keyword_validator_base&) = delete;
         keyword_validator_base& operator=(keyword_validator_base&&) = default;
 
-        const uri& schema_path() const override
+        const uri& reference() const override
         {
-            return schema_path_;
+            return reference_;
         }
     };
 
@@ -144,7 +144,7 @@ namespace jsonschema {
 
         virtual bool is_recursive_anchor() const = 0;
 
-        virtual schema_validator_type clone(const uri& base_uri) const = 0;
+        virtual schema_validator_type make_validator(const uri& base_uri) const = 0;
     };
 
     template <class Json>
@@ -170,13 +170,13 @@ namespace jsonschema {
             return base_uri_;
         }
 
-        const uri& schema_path() const override
+        const uri& reference() const override
         {
             static uri s = uri("#");
-            return referred_schema_ ? referred_schema_->schema_path() : s;
+            return referred_schema_ ? referred_schema_->reference() : s;
         }
 
-        keyword_validator_type clone(const uri& base_uri) const override 
+        keyword_validator_type make_validator(const uri& base_uri) const override 
         {
             static uri s = uri("#");
             uri abs{s};
@@ -184,8 +184,8 @@ namespace jsonschema {
             schema_validator_type referred_schema;
             if (referred_schema_)
             {
-                referred_schema = referred_schema_->clone(base_uri);
-                abs = referred_schema_->schema_path().resolve(base_uri);
+                referred_schema = referred_schema_->make_validator(base_uri);
+                abs = referred_schema_->reference().resolve(base_uri);
             }
 
             return jsoncons::make_unique<ref_validator>(abs, std::move(referred_schema));
@@ -195,7 +195,7 @@ namespace jsonschema {
 
         void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override
         {
-            std::cout << "ref_validator location::do_resolve_recursive_refs: " << schema_path().string()
+            std::cout << "ref_validator location::do_resolve_recursive_refs: " << reference().string()
                 << "\n  base: " << base.string() << ", has_recursive_anchor: " << has_recursive_anchor << "\n\n";
 
             JSONCONS_ASSERT(referred_schema_)
@@ -206,7 +206,7 @@ namespace jsonschema {
             }
             else
             {
-                referred_schema_->resolve_recursive_refs(referred_schema_->schema_path(), referred_schema_->is_recursive_anchor(), schemas);
+                referred_schema_->resolve_recursive_refs(referred_schema_->reference(), referred_schema_->is_recursive_anchor(), schemas);
             }
         }
 
@@ -219,9 +219,9 @@ namespace jsonschema {
             if (!referred_schema_)
             {
                 reporter.error(validation_output("", 
-                                                 this->schema_path(), 
+                                                 this->reference(), 
                                                  instance_location.to_uri_fragment(), 
-                                                 "Unresolved schema reference " + this->schema_path().string()));
+                                                 "Unresolved schema reference " + this->reference().string()));
                 return;
             }
 
@@ -250,17 +250,17 @@ namespace jsonschema {
             return base_uri_;
         }
 
-        const uri& schema_path() const override
+        const uri& reference() const override
         {
-            return referred_schema_ ? referred_schema_->schema_path() : base_uri_;
+            return referred_schema_ ? referred_schema_->reference() : base_uri_;
         }
 
-        keyword_validator_type clone(const jsoncons::uri& base_uri) const override 
+        keyword_validator_type make_validator(const jsoncons::uri& base_uri) const override 
         {
-            std::cout << "recursive_ref_validator.clone " << "base_uri: << " << base_uri.string() << ", schema_path: " << this->schema_path().string() << "\n\n";
+            std::cout << "recursive_ref_validator.make_validator " << "base_uri: << " << base_uri.string() << ", reference: " << this->reference().string() << "\n\n";
 
             auto uri = base_uri_.resolve(base_uri);
-            return jsoncons::make_unique<recursive_ref_validator>(uri, referred_schema_ ? referred_schema_->clone(base_uri) : nullptr);
+            return jsoncons::make_unique<recursive_ref_validator>(uri, referred_schema_ ? referred_schema_->make_validator(base_uri) : nullptr);
         }
 
     private:
@@ -277,9 +277,9 @@ namespace jsonschema {
             {
                 location = relative.resolve(base_uri_);
             }
-            referred_schema_ = schemas.get_schema(location)->clone(location);
+            referred_schema_ = schemas.get_schema(location)->make_validator(location);
             referred_schema_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            std::cout << "recursive_ref_validator::do_resolve_recursive_refs location: " << schema_path().string()
+            std::cout << "recursive_ref_validator::do_resolve_recursive_refs location: " << reference().string()
                 << "\n  base: " << base.string() << ", has_recursive_anchor: " << has_recursive_anchor 
                 << "\n  location: " << location.string() << "\n\n";
         }
@@ -290,14 +290,14 @@ namespace jsonschema {
             error_reporter& reporter, 
             Json& patch) const override
         {
-            std::cout << "recursive_ref_validator.do_validate " << "keywordLocation: << " << this->schema_path().string() << ", instanceLocation:" << instance_location.to_string() << "\n";
+            std::cout << "recursive_ref_validator.do_validate " << "keywordLocation: << " << this->reference().string() << ", instanceLocation:" << instance_location.to_string() << "\n";
 
             if (referred_schema_ == nullptr)
             {
                 reporter.error(validation_output("", 
-                                                 this->schema_path(), 
+                                                 this->reference(), 
                                                  instance_location.to_uri_fragment(), 
-                                                 "Unresolved schema reference " + this->schema_path().string()));
+                                                 "Unresolved schema reference " + this->reference().string()));
                 return;
             }
 
@@ -312,12 +312,12 @@ namespace jsonschema {
         using schema_validator_type = typename std::unique_ptr<schema_validator<Json>>;
         using keyword_validator_type = typename std::unique_ptr<keyword_validator<Json>>;
 
-        uri schema_path_;
+        uri reference_;
         bool value_;
 
     public:
-        boolean_schema_validator(const uri& schema_path, bool value)
-            : schema_path_(schema_path), value_(value)
+        boolean_schema_validator(const uri& reference, bool value)
+            : reference_(reference), value_(value)
         {
         }
 
@@ -326,9 +326,9 @@ namespace jsonschema {
             return jsoncons::optional<Json>{};
         }
 
-        const uri& schema_path() const override
+        const uri& reference() const override
         {
-            return schema_path_;
+            return reference_;
         }
 
         bool is_recursive_anchor() const final
@@ -336,9 +336,9 @@ namespace jsonschema {
             return false;
         }
 
-        schema_validator_type clone(const uri& base_uri) const final
+        schema_validator_type make_validator(const uri& base_uri) const final
         {
-            return jsoncons::make_unique<boolean_schema_validator>(schema_path_.resolve(base_uri), value_);
+            return jsoncons::make_unique<boolean_schema_validator>(reference_.resolve(base_uri), value_);
         }
 
     private:
@@ -356,7 +356,7 @@ namespace jsonschema {
             if (!value_)
             {
                 reporter.error(validation_output("false", 
-                    this->schema_path(), 
+                    this->reference(), 
                     instance_location.to_uri_fragment(), 
                     "False schema always fails"));
             }
@@ -370,15 +370,15 @@ namespace jsonschema {
         using schema_validator_type = typename std::unique_ptr<schema_validator<Json>>;
         using keyword_validator_type = typename std::unique_ptr<keyword_validator<Json>>;
 
-        uri schema_path_;
+        uri reference_;
         std::vector<keyword_validator_type> validators_;
         Json default_value_;
         bool is_recursive_anchor_;
 
     public:
-        object_schema_validator(const uri& schema_path, std::vector<keyword_validator_type>&& validators, Json&& default_value,
+        object_schema_validator(const uri& reference, std::vector<keyword_validator_type>&& validators, Json&& default_value,
             bool is_recursive_anchor = false)
-            : schema_path_(schema_path),
+            : reference_(reference),
               validators_(std::move(validators)),
               default_value_(std::move(default_value)),
               is_recursive_anchor_(is_recursive_anchor)
@@ -390,9 +390,9 @@ namespace jsonschema {
             return default_value_;
         }
 
-        const uri& schema_path() const override
+        const uri& reference() const override
         {
-            return schema_path_;
+            return reference_;
         }
 
         bool is_recursive_anchor() const final
@@ -400,15 +400,15 @@ namespace jsonschema {
             return is_recursive_anchor_;
         }
 
-        schema_validator_type clone(const uri& base_uri) const final
+        schema_validator_type make_validator(const uri& base_uri) const final
         {
             std::vector<keyword_validator_type> validators;
             for (auto& validator : validators_)
             {
-                validators.push_back(validator->clone(base_uri));
+                validators.push_back(validator->make_validator(base_uri));
             }
 
-            return jsoncons::make_unique<object_schema_validator>(schema_path_.resolve(base_uri), std::move(validators), Json(default_value_), is_recursive_anchor_);
+            return jsoncons::make_unique<object_schema_validator>(reference_.resolve(base_uri), std::move(validators), Json(default_value_), is_recursive_anchor_);
         }
 
     private:
@@ -425,17 +425,17 @@ namespace jsonschema {
             {
                 for (auto& validator : validators_)
                 {
-                    validator->resolve_recursive_refs(schema_path(), is_recursive_anchor_, schemas);
+                    validator->resolve_recursive_refs(reference(), is_recursive_anchor_, schemas);
                 }
             }
             else
             {
                 for (auto& validator : validators_)
                 {
-                    validator->resolve_recursive_refs(schema_path(), is_recursive_anchor_, schemas);
+                    validator->resolve_recursive_refs(reference(), is_recursive_anchor_, schemas);
                 }
             }
-            std::cout << "object_schema_validator location::do_resolve_recursive_refs: " << schema_path().string() << ", " << is_recursive_anchor_
+            std::cout << "object_schema_validator location::do_resolve_recursive_refs: " << reference().string() << ", " << is_recursive_anchor_
                      << "\n  base: " << base.string() << ", has_recursive_anchor: " << has_recursive_anchor << "\n\n";
         }
 
@@ -476,13 +476,13 @@ namespace jsonschema {
         {
         }
 
-        const uri& schema_path() const override
+        const uri& reference() const override
         {
             static uri s("#");
-            return validator_ != nullptr ? validator_->schema_path() : s;
+            return validator_ != nullptr ? validator_->reference() : s;
         }
 
-        keyword_validator_type clone(const uri&) const final 
+        keyword_validator_type make_validator(const uri&) const final 
         {
             return jsoncons::make_unique<keyword_validator_wrapper>(validator_);
         }
@@ -500,6 +500,42 @@ namespace jsonschema {
             Json& patch) const override
         {
             validator_->validate(instance, instance_location, evaluated_properties, reporter, patch);
+        }
+    };
+
+    template <class Json>
+    class schema_keyword 
+    {
+    public:
+        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+
+        virtual ~schema_keyword() = default;
+
+        virtual const uri& reference() const = 0;
+
+        virtual keyword_validator_type make_validator(const uri& base_uri) const = 0;
+    };
+
+    template <class Json>
+    class schema_keyword_base : public schema_keyword<Json>
+    {
+        uri reference_;
+    public:
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
+
+        schema_keyword_base(const uri& reference)
+            : reference_(reference)
+        {
+        }
+
+        schema_keyword_base(const schema_keyword_base&) = delete;
+        schema_keyword_base(schema_keyword_base&&) = default;
+        schema_keyword_base& operator=(const schema_keyword_base&) = delete;
+        schema_keyword_base& operator=(schema_keyword_base&&) = default;
+
+        const uri& reference() const override
+        {
+            return reference_;
         }
     };
 

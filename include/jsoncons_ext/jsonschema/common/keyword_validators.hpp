@@ -4,14 +4,15 @@
 
 // See https://github.com/danielaparker/jsoncons for latest version
 
-#ifndef JSONCONS_JSONSCHEMA_COMMON_KEYWORDS_HPP
-#define JSONCONS_JSONSCHEMA_COMMON_KEYWORDS_HPP
+#ifndef JSONCONS_JSONSCHEMA_COMMON_KEYWORD_VALIDATORS_HPP
+#define JSONCONS_JSONSCHEMA_COMMON_KEYWORD_VALIDATORS_HPP
 
 #include <jsoncons/config/jsoncons_config.hpp>
 #include <jsoncons/uri.hpp>
 #include <jsoncons/json.hpp>
 #include <jsoncons_ext/jsonpointer/jsonpointer.hpp>
-#include <jsoncons_ext/jsonschema/common/keyword_validators.hpp>
+#include <jsoncons_ext/jsonschema/common/format_validator.hpp>
+#include <jsoncons_ext/jsonschema/common/keyword_validator.hpp>
 #include <cassert>
 #include <set>
 #include <sstream>
@@ -25,23 +26,34 @@
 namespace jsoncons {
 namespace jsonschema {
 
+    struct collecting_error_reporter : public error_reporter
+    {
+        std::vector<validation_output> errors;
+
+    private:
+        void do_error(const validation_output& o) final
+        {
+            errors.push_back(o);
+        }
+    };
+
     // contentEncoding
 
     template <class Json>
-    class content_encoding_keyword : public schema_keyword_base<Json>
+    class content_encoding_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         std::string content_encoding_;
 
     public:
-        content_encoding_keyword(const uri& reference, const std::string& content_encoding)
-            : schema_keyword_base<Json>(reference), 
+        content_encoding_validator(const uri& reference, const std::string& content_encoding)
+            : keyword_validator_base<Json>(reference), 
               content_encoding_(content_encoding)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<content_encoding_validator>(this->reference().resolve(base_uri), content_encoding_);
         }
@@ -91,20 +103,20 @@ namespace jsonschema {
     // contentMediaType
 
     template <class Json>
-    class content_media_type_keyword : public schema_keyword_base<Json>
+    class content_media_type_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         std::string content_media_type_;
 
     public:
-        content_media_type_keyword(const uri& reference, const std::string& content_media_type)
-            : schema_keyword_base<Json>(reference), 
+        content_media_type_validator(const uri& reference, const std::string& content_media_type)
+            : keyword_validator_base<Json>(reference), 
               content_media_type_(content_media_type)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<content_media_type_validator>(this->reference().resolve(base_uri), content_media_type_);
         }
@@ -141,20 +153,20 @@ namespace jsonschema {
     // format 
 
     template <class Json>
-    class format_keyword : public schema_keyword_base<Json>
+    class format_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         format_checker format_check_;
 
     public:
-        format_keyword(const uri& reference, const format_checker& format_check)
-            : schema_keyword_base<Json>(reference), format_check_(format_check)
+        format_validator(const uri& reference, const format_checker& format_check)
+            : keyword_validator_base<Json>(reference), format_check_(format_check)
         {
 
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<format_validator>(this->reference().resolve(base_uri), format_check_);
         }
@@ -187,7 +199,7 @@ namespace jsonschema {
 
 #if defined(JSONCONS_HAS_STD_REGEX)
     template <class Json>
-    class pattern_keyword : public schema_keyword_base<Json>
+    class pattern_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
@@ -195,14 +207,14 @@ namespace jsonschema {
         std::regex regex_;
 
     public:
-        pattern_keyword(const uri& reference,
+        pattern_validator(const uri& reference,
             const std::string& pattern_string, const std::regex& regex)
-            : schema_keyword_base<Json>(reference), 
+            : keyword_validator_base<Json>(reference), 
               pattern_string_(pattern_string), regex_(regex)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<pattern_validator>(this->reference().resolve(base_uri), pattern_string_, regex_);
         }
@@ -240,17 +252,17 @@ namespace jsonschema {
     };
 #else
     template <class Json>
-    class pattern_keyword : public schema_keyword_base<Json>
+    class pattern_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
     public:
-        pattern_keyword(const uri& reference)
-            : schema_keyword_base<Json>(reference)
+        pattern_validator(const uri& reference)
+            : keyword_validator_base<Json>(reference)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<pattern_validator>(this->reference().resolve(base_uri));
         }
@@ -273,18 +285,18 @@ namespace jsonschema {
     // maxLength
 
     template <class Json>
-    class max_length_keyword : public schema_keyword_base<Json>
+    class max_length_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         std::size_t max_length_;
     public:
-        max_length_keyword(const uri& reference, std::size_t max_length)
-            : schema_keyword_base<Json>(reference), max_length_(max_length)
+        max_length_validator(const uri& reference, std::size_t max_length)
+            : keyword_validator_base<Json>(reference), max_length_(max_length)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<max_length_validator>(this->reference().resolve(base_uri), max_length_);
         }
@@ -321,18 +333,18 @@ namespace jsonschema {
     // maxItems
 
     template <class Json>
-    class max_items_keyword : public schema_keyword_base<Json>
+    class max_items_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         std::size_t max_items_;
     public:
-        max_items_keyword(const uri& reference, std::size_t max_items)
-            : schema_keyword_base<Json>(reference), max_items_(max_items)
+        max_items_validator(const uri& reference, std::size_t max_items)
+            : keyword_validator_base<Json>(reference), max_items_(max_items)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<max_items_validator>(this->reference().resolve(base_uri), max_items_);
         }
@@ -368,18 +380,18 @@ namespace jsonschema {
     // minItems
 
     template <class Json>
-    class min_items_keyword : public schema_keyword_base<Json>
+    class min_items_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
 
         std::size_t min_items_;
     public:
-        min_items_keyword(const uri& reference, std::size_t min_items)
-            : schema_keyword_base<Json>(reference), min_items_(min_items)
+        min_items_validator(const uri& reference, std::size_t min_items)
+            : keyword_validator_base<Json>(reference), min_items_(min_items)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<min_items_validator>(this->reference().resolve(base_uri), min_items_);
         }
@@ -415,7 +427,7 @@ namespace jsonschema {
     // items
 
     template <class Json>
-    class items_array_keyword : public schema_keyword_base<Json>
+    class items_array_validator : public keyword_validator_base<Json>
     {
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
         using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
@@ -423,27 +435,27 @@ namespace jsonschema {
         std::vector<schema_validator_type> item_validators_;
         schema_validator_type additional_items_validator_;
     public:
-        items_array_keyword(const uri& reference, 
+        items_array_validator(const uri& reference, 
             std::vector<schema_validator_type>&& item_validators,
             schema_validator_type&& additional_items_validator)
-            : schema_keyword_base<Json>(reference), 
+            : keyword_validator_base<Json>(reference), 
               item_validators_(std::move(item_validators)), 
               additional_items_validator_(std::move(additional_items_validator))
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<schema_validator_type> item_validators;
             for (auto& validator : item_validators_)
             {
-                item_validators.push_back(validator->make_keyword(base_uri));
+                item_validators.push_back(validator->make_validator(base_uri));
             }
             schema_validator_type additional_items_validator; 
             
             if (additional_items_validator_)
             {
-                additional_items_validator = additional_items_validator_->make_keyword(base_uri);
+                additional_items_validator = additional_items_validator_->make_validator(base_uri);
             }
 
             return jsoncons::make_unique<items_array_validator>(this->reference().resolve(base_uri), std::move(item_validators),
@@ -498,26 +510,26 @@ namespace jsonschema {
     // contains
 
     template <class Json>
-    class contains_keyword : public schema_keyword_base<Json>
+    class contains_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
 
         schema_validator_type validator_;
     public:
-        contains_keyword(const uri& reference, 
+        contains_validator(const uri& reference, 
             schema_validator_type&& validator)
-            : schema_keyword_base<Json>(reference), 
+            : keyword_validator_base<Json>(reference), 
               validator_(std::move(validator))
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             schema_validator_type validator;
             if (validator_)
             {
-                validator = validator_->make_keyword(base_uri);
+                validator = validator_->make_validator(base_uri);
             }
 
             return jsoncons::make_unique<contains_validator>(this->reference().resolve(base_uri),
@@ -572,26 +584,26 @@ namespace jsonschema {
     };
 
     template <class Json>
-    class items_object_keyword : public schema_keyword_base<Json>
+    class items_object_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
 
         schema_validator_type items_validator_;
     public:
-        items_object_keyword(const uri& reference, 
+        items_object_validator(const uri& reference, 
             schema_validator_type&& items_validator)
-            : schema_keyword_base<Json>(reference), 
+            : keyword_validator_base<Json>(reference), 
               items_validator_(std::move(items_validator))
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             schema_validator_type items_validator;
             if (items_validator_)
             {
-                items_validator = items_validator_->make_keyword(base_uri);
+                items_validator = items_validator_->make_validator(base_uri);
             }
             return jsoncons::make_unique<items_object_validator>(this->reference().resolve(base_uri),
                 std::move(items_validator));
@@ -630,18 +642,18 @@ namespace jsonschema {
     // uniqueItems
 
     template <class Json>
-    class unique_items_keyword : public schema_keyword_base<Json>
+    class unique_items_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         bool are_unique_;
     public:
-        unique_items_keyword(const uri& reference, bool are_unique)
-            : schema_keyword_base<Json>(reference), are_unique_(are_unique)
+        unique_items_validator(const uri& reference, bool are_unique)
+            : keyword_validator_base<Json>(reference), are_unique_(are_unique)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<unique_items_validator>(this->reference().resolve(base_uri),
                 are_unique_);
@@ -691,19 +703,19 @@ namespace jsonschema {
     // minLength
 
     template <class Json>
-    class min_length_keyword : public schema_keyword_base<Json>
+    class min_length_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         std::size_t min_length_;
 
     public:
-        min_length_keyword(const uri& reference, std::size_t min_length)
-            : schema_keyword_base<Json>(reference), min_length_(min_length)
+        min_length_validator(const uri& reference, std::size_t min_length)
+            : keyword_validator_base<Json>(reference), min_length_(min_length)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<min_length_validator>(this->reference().resolve(base_uri),
                 min_length_);
@@ -741,24 +753,24 @@ namespace jsonschema {
     // string 
 
     template <class Json>
-    class string_keyword : public schema_keyword_base<Json>
+    class string_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = typename std::unique_ptr<keyword_validator<Json>>;
 
         std::vector<keyword_validator_type> validators_;
     public:
-        string_keyword(const uri& reference,
+        string_validator(const uri& reference,
             std::vector<keyword_validator_type>&& validators)
-            : schema_keyword_base<Json>(reference), validators_(std::move(validators))
+            : keyword_validator_base<Json>(reference), validators_(std::move(validators))
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<keyword_validator_type> validators;
             for (auto& validator : validators_)
             {
-                validators.emplace_back(validator->make_keyword(base_uri));
+                validators.emplace_back(validator->make_validator(base_uri));
             }
 
             return jsoncons::make_unique<string_validator>(this->reference().resolve(base_uri),
@@ -794,7 +806,7 @@ namespace jsonschema {
     // not
 
     template <class Json>
-    class not_keyword : public schema_keyword_base<Json>
+    class not_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
@@ -802,19 +814,19 @@ namespace jsonschema {
         schema_validator_type rule_;
 
     public:
-        not_keyword(const uri& reference,
+        not_validator(const uri& reference,
             schema_validator_type&& rule)
-            : schema_keyword_base<Json>(reference), 
+            : keyword_validator_base<Json>(reference), 
               rule_(std::move(rule))
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             schema_validator_type rule;
             if (rule_)
             {
-                rule = rule_->make_keyword(base_uri);
+                rule = rule_->make_validator(base_uri);
             }
 
             return jsoncons::make_unique<not_validator>(this->reference().resolve(base_uri),
@@ -850,8 +862,81 @@ namespace jsonschema {
         }
     };
 
+    template <class Json>
+    struct all_of_criterion
+    {
+        static const std::string& key()
+        {
+            static const std::string k("allOf");
+            return k;
+        }
+
+        static bool is_complete(const Json&, 
+                                const jsonpointer::json_pointer& instance_location, 
+                                error_reporter& reporter, 
+                                const collecting_error_reporter& local_reporter, 
+                                std::size_t)
+        {
+            if (!local_reporter.errors.empty())
+                reporter.error(validation_output("allOf", 
+                                                 uri(""),
+                                                 instance_location.to_uri_fragment(), 
+                                                 "At least one schema failed to match, but all are required to match. ", 
+                                                 local_reporter.errors));
+            return !local_reporter.errors.empty();
+        }
+    };
+
+    template <class Json>
+    struct any_of_criterion
+    {
+        static const std::string& key()
+        {
+            static const std::string k("anyOf");
+            return k;
+        }
+
+        static bool is_complete(const Json&, 
+                                const jsonpointer::json_pointer&, 
+                                error_reporter&, 
+                                const collecting_error_reporter&, 
+                                std::size_t count)
+        {
+            //std::cout << "any_of_criterion is_complete\n";
+            return count == 1;
+        }
+    };
+
+    template <class Json>
+    struct one_of_criterion
+    {
+        static const std::string& key()
+        {
+            static const std::string k("oneOf");
+            return k;
+        }
+
+        static bool is_complete(const Json&, 
+                                const jsonpointer::json_pointer& instance_location, 
+                                error_reporter& reporter, 
+                                const collecting_error_reporter&, 
+                                std::size_t count)
+        {
+            if (count > 1)
+            {
+                std::string message(std::to_string(count));
+                message.append(" subschemas matched, but exactly one is required to match");
+                reporter.error(validation_output("oneOf", 
+                                                 uri("XXX"), 
+                                                 instance_location.to_uri_fragment(), 
+                                                 std::move(message)));
+            }
+            return count > 1;
+        }
+    };
+
     template <class Json,class Criterion>
-    class combining_keyword : public schema_keyword_base<Json>
+    class combining_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
@@ -859,19 +944,19 @@ namespace jsonschema {
         std::vector<schema_validator_type> validators_;
 
     public:
-        combining_keyword(const uri& reference,
+        combining_validator(const uri& reference,
              std::vector<schema_validator_type>&& validators)
-            : schema_keyword_base<Json>(std::move(reference)),
+            : keyword_validator_base<Json>(std::move(reference)),
               validators_(std::move(validators))
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<schema_validator_type> validators;
             for (auto& validator : validators_)
             {
-                validators.emplace_back(validator->make_keyword(base_uri));
+                validators.emplace_back(validator->make_validator(base_uri));
             }
 
             return jsoncons::make_unique<combining_validator>(this->reference().resolve(base_uri),
@@ -926,19 +1011,19 @@ namespace jsonschema {
     };
 
     template <class Json,class T>
-    class maximum_keyword : public schema_keyword_base<Json>
+    class maximum_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         T value_;
 
     public:
-        maximum_keyword(const uri& reference, T value)
-            : schema_keyword_base<Json>(reference), value_(value)
+        maximum_validator(const uri& reference, T value)
+            : keyword_validator_base<Json>(reference), value_(value)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<maximum_validator>(this->reference().resolve(base_uri),
                 value_);
@@ -967,19 +1052,19 @@ namespace jsonschema {
     };
 
     template <class Json,class T>
-    class exclusive_maximum_keyword : public schema_keyword_base<Json>
+    class exclusive_maximum_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         T value_;
 
     public:
-        exclusive_maximum_keyword(const uri& reference, T value)
-            : schema_keyword_base<Json>(reference), value_(value)
+        exclusive_maximum_validator(const uri& reference, T value)
+            : keyword_validator_base<Json>(reference), value_(value)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<exclusive_maximum_validator>(this->reference().resolve(base_uri),
                 value_);
@@ -1008,19 +1093,19 @@ namespace jsonschema {
     };
 
     template <class Json,class T>
-    class minimum_keyword : public schema_keyword_base<Json>
+    class minimum_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         T value_;
 
     public:
-        minimum_keyword(const uri& reference, T value)
-            : schema_keyword_base<Json>(reference), value_(value)
+        minimum_validator(const uri& reference, T value)
+            : keyword_validator_base<Json>(reference), value_(value)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             //std::cout << "make_validator minimum " << this->reference().string() << ", base: " << base_uri.string() << ", resolve: " << this->reference().resolve(base_uri).string() << "\n\n"; 
 
@@ -1051,19 +1136,19 @@ namespace jsonschema {
     };
 
     template <class Json,class T>
-    class exclusive_minimum_keyword : public schema_keyword_base<Json>
+    class exclusive_minimum_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         T value_;
 
     public:
-        exclusive_minimum_keyword(const uri& reference, T value)
-            : schema_keyword_base<Json>(reference), value_(value)
+        exclusive_minimum_validator(const uri& reference, T value)
+            : keyword_validator_base<Json>(reference), value_(value)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<exclusive_minimum_validator>(this->reference().resolve(base_uri),
                 value_);
@@ -1092,19 +1177,19 @@ namespace jsonschema {
     };
 
     template <class Json>
-    class multiple_of_keyword : public schema_keyword_base<Json>
+    class multiple_of_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         double value_;
 
     public:
-        multiple_of_keyword(const uri& reference, double value)
-            : schema_keyword_base<Json>(reference), value_(value)
+        multiple_of_validator(const uri& reference, double value)
+            : keyword_validator_base<Json>(reference), value_(value)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<multiple_of_validator>(this->reference().resolve(base_uri),
                 value_);
@@ -1143,24 +1228,24 @@ namespace jsonschema {
     };
 
     template <class Json>
-    class integer_keyword : public schema_keyword_base<Json>
+    class integer_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = typename std::unique_ptr<keyword_validator<Json>>;
 
         std::vector<keyword_validator_type> validators_;
     public:
-        integer_keyword(const uri& reference, 
+        integer_validator(const uri& reference, 
             std::vector<keyword_validator_type>&& validators)
-            : schema_keyword_base<Json>(reference), validators_(std::move(validators))
+            : keyword_validator_base<Json>(reference), validators_(std::move(validators))
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<keyword_validator_type> validators;
             for (auto& validator : validators_)
             {
-                validators.emplace_back(validator->make_keyword(base_uri));
+                validators.emplace_back(validator->make_validator(base_uri));
             }
 
             return jsoncons::make_unique<integer_validator>(this->reference().resolve(base_uri),
@@ -1205,24 +1290,24 @@ namespace jsonschema {
     };
 
     template <class Json>
-    class number_keyword : public schema_keyword_base<Json>
+    class number_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = typename std::unique_ptr<keyword_validator<Json>>;
 
         std::vector<keyword_validator_type> validators_;
     public:
-        number_keyword(const uri& reference, 
+        number_validator(const uri& reference, 
             std::vector<keyword_validator_type>&& validators)
-            : schema_keyword_base<Json>(reference), validators_(std::move(validators))
+            : keyword_validator_base<Json>(reference), validators_(std::move(validators))
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<keyword_validator_type> validators;
             for (auto& validator : validators_)
             {
-                validators.emplace_back(validator->make_keyword(base_uri));
+                validators.emplace_back(validator->make_validator(base_uri));
             }
 
             return jsoncons::make_unique<number_validator>(this->reference().resolve(base_uri),
@@ -1269,17 +1354,17 @@ namespace jsonschema {
     // null
 
     template <class Json>
-    class null_keyword : public schema_keyword_base<Json>
+    class null_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
     public:
-        null_keyword(const uri& reference)
-            : schema_keyword_base<Json>(reference)
+        null_validator(const uri& reference)
+            : keyword_validator_base<Json>(reference)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<null_validator>(this->reference().resolve(base_uri));
         }
@@ -1306,17 +1391,17 @@ namespace jsonschema {
     };
 
     template <class Json>
-    class boolean_keyword : public schema_keyword_base<Json>
+    class boolean_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
     public:
-        boolean_keyword(const uri& reference)
-            : schema_keyword_base<Json>(reference)
+        boolean_validator(const uri& reference)
+            : keyword_validator_base<Json>(reference)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<boolean_validator>(this->reference().resolve(base_uri));
         }
@@ -1337,25 +1422,25 @@ namespace jsonschema {
     };
 
     template <class Json>
-    class required_keyword : public schema_keyword_base<Json>
+    class required_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         std::vector<std::string> items_;
 
     public:
-        required_keyword(const uri& reference,
+        required_validator(const uri& reference,
             const std::vector<std::string>& items)
-            : schema_keyword_base<Json>(reference), items_(items)
+            : keyword_validator_base<Json>(reference), items_(items)
         {
         }
 
-        required_keyword(const required_keyword&) = delete;
-        required_keyword(required_keyword&&) = default;
-        required_keyword& operator=(const required_keyword&) = delete;
-        required_keyword& operator=(required_keyword&&) = default;
+        required_validator(const required_validator&) = delete;
+        required_validator(required_validator&&) = default;
+        required_validator& operator=(const required_validator&) = delete;
+        required_validator& operator=(required_validator&&) = default;
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<required_validator>(this->reference().resolve(base_uri),
                 items_);
@@ -1393,18 +1478,18 @@ namespace jsonschema {
     // maxProperties
 
     template <class Json>
-    class max_properties_keyword : public schema_keyword_base<Json>
+    class max_properties_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         std::size_t max_properties_;
     public:
-        max_properties_keyword(const uri& reference, std::size_t max_properties)
-            : schema_keyword_base<Json>(reference), max_properties_(max_properties)
+        max_properties_validator(const uri& reference, std::size_t max_properties)
+            : keyword_validator_base<Json>(reference), max_properties_(max_properties)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<max_properties_validator>(this->reference().resolve(base_uri), max_properties_);
         }
@@ -1440,18 +1525,18 @@ namespace jsonschema {
     // minProperties
 
     template <class Json>
-    class min_properties_keyword : public schema_keyword_base<Json>
+    class min_properties_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         std::size_t min_properties_;
     public:
-        min_properties_keyword(const uri& reference, std::size_t min_properties)
-            : schema_keyword_base<Json>(reference), min_properties_(min_properties)
+        min_properties_validator(const uri& reference, std::size_t min_properties)
+            : keyword_validator_base<Json>(reference), min_properties_(min_properties)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<min_properties_validator>(this->reference().resolve(base_uri), min_properties_);
         }
@@ -1485,7 +1570,7 @@ namespace jsonschema {
     };
 
     template <class Json>
-    class object_keyword : public schema_keyword_base<Json>
+    class object_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
@@ -1504,7 +1589,7 @@ namespace jsonschema {
         schema_validator_type property_name_validator_;
 
     public:
-        object_keyword(const uri& reference,
+        object_validator(const uri& reference,
             std::vector<keyword_validator_type>&& general_validators,
             std::map<std::string, schema_validator_type>&& properties,
         #if defined(JSONCONS_HAS_STD_REGEX)
@@ -1515,7 +1600,7 @@ namespace jsonschema {
             std::map<std::string, schema_validator_type>&& dependent_schemas,
             schema_validator_type&& property_name_validator
         )
-            : schema_keyword_base<Json>(std::move(reference)), 
+            : keyword_validator_base<Json>(std::move(reference)), 
               general_validators_(std::move(general_validators)),
               properties_(std::move(properties)),
         #if defined(JSONCONS_HAS_STD_REGEX)
@@ -1528,18 +1613,18 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<keyword_validator_type> general_validators;
             for (auto& validator : general_validators_)
             {
-                general_validators.emplace_back(validator->make_keyword(base_uri));
+                general_validators.emplace_back(validator->make_validator(base_uri));
             }
 
             std::map<std::string, schema_validator_type> properties;
             for (auto& item : properties_)
             {
-                properties.emplace(item.first, item.second->make_keyword(base_uri));
+                properties.emplace(item.first, item.second->make_validator(base_uri));
             }
 
 
@@ -1547,31 +1632,31 @@ namespace jsonschema {
             std::vector<std::pair<std::regex, schema_validator_type>> pattern_properties;
             for (auto& item : pattern_properties_)
             {
-                pattern_properties.emplace_back(item.first, item.second->make_keyword(base_uri));
+                pattern_properties.emplace_back(item.first, item.second->make_validator(base_uri));
             }
         #endif
             schema_validator_type additional_properties;
             if (additional_properties_)
             {
-                additional_properties = additional_properties_->make_keyword(base_uri);
+                additional_properties = additional_properties_->make_validator(base_uri);
             }
 
             std::map<std::string, keyword_validator_type> dependent_required;
             for (auto& item : dependent_required_)
             {
-                dependent_required.emplace(item.first, item.second->make_keyword(base_uri));
+                dependent_required.emplace(item.first, item.second->make_validator(base_uri));
             }
 
             std::map<std::string, schema_validator_type> dependent_schemas;
             for (auto& item : dependent_schemas_)
             {
-                dependent_schemas.emplace(item.first, item.second->make_keyword(base_uri));
+                dependent_schemas.emplace(item.first, item.second->make_validator(base_uri));
             }
 
             schema_validator_type property_name_validator;
             if (property_name_validator_)
             {
-                property_name_validator = property_name_validator_->make_keyword(base_uri);
+                property_name_validator = property_name_validator_->make_validator(base_uri);
             }
 
             return jsoncons::make_unique<object_validator>(this->reference().resolve(base_uri),
@@ -1771,7 +1856,7 @@ namespace jsonschema {
     };
 
     template <class Json>
-    class unevaluated_properties_keyword : public schema_keyword_base<Json>
+    class unevaluated_properties_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
@@ -1779,20 +1864,20 @@ namespace jsonschema {
         schema_validator_type validator_;
 
     public:
-        unevaluated_properties_keyword(const uri& reference,
+        unevaluated_properties_validator(const uri& reference,
             schema_validator_type&& validator
         )
-            : schema_keyword_base<Json>(std::move(reference)), 
+            : keyword_validator_base<Json>(std::move(reference)), 
               validator_(std::move(validator))
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             schema_validator_type validator;
             if (validator_)
             {
-                validator = validator_->make_keyword(base_uri);
+                validator = validator_->make_validator(base_uri);
             }
             return jsoncons::make_unique<unevaluated_properties_validator>(this->reference().resolve(base_uri),
                 std::move(validator));
@@ -1846,23 +1931,23 @@ namespace jsonschema {
     // array
 
     template <class Json>
-    class array_keyword : public schema_keyword_base<Json>
+    class array_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
 
         std::vector<keyword_validator_type> validators_;
     public:
-        array_keyword(const uri& reference, std::vector<keyword_validator_type>&& validators)
-            : schema_keyword_base<Json>(reference), validators_(std::move(validators))
+        array_validator(const uri& reference, std::vector<keyword_validator_type>&& validators)
+            : keyword_validator_base<Json>(reference), validators_(std::move(validators))
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<keyword_validator_type> validators;
             for (auto& validator : validators_)
             {
-                validators.emplace_back(validator->make_keyword(base_uri));
+                validators.emplace_back(validator->make_validator(base_uri));
             }
 
             return jsoncons::make_unique<array_validator>(this->reference().resolve(base_uri),
@@ -1897,7 +1982,7 @@ namespace jsonschema {
     };
 
     template <class Json>
-    class conditional_keyword : public schema_keyword_base<Json>
+    class conditional_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
@@ -1907,33 +1992,33 @@ namespace jsonschema {
         schema_validator_type else_validator_;
 
     public:
-        conditional_keyword(const uri& reference,
+        conditional_validator(const uri& reference,
           schema_validator_type&& if_validator,
           schema_validator_type&& then_validator,
           schema_validator_type&& else_validator
-        ) : schema_keyword_base<Json>(std::move(reference)), 
+        ) : keyword_validator_base<Json>(std::move(reference)), 
               if_validator_(std::move(if_validator)), 
               then_validator_(std::move(then_validator)), 
               else_validator_(std::move(else_validator))
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             schema_validator_type if_validator;
             if (if_validator_)
             {
-                if_validator = if_validator_->make_keyword(base_uri);
+                if_validator = if_validator_->make_validator(base_uri);
             }
             schema_validator_type then_validator;
             if (then_validator_)
             {
-                then_validator = then_validator_->make_keyword(base_uri);
+                then_validator = then_validator_->make_validator(base_uri);
             }
             schema_validator_type else_validator;
             if (else_validator_)
             {
-                else_validator = else_validator_->make_keyword(base_uri);
+                else_validator = else_validator_->make_validator(base_uri);
             }
 
             return jsoncons::make_unique<conditional_validator>(this->reference().resolve(base_uri), 
@@ -1985,19 +2070,19 @@ namespace jsonschema {
     // enum_validator
 
     template <class Json>
-    class enum_keyword : public schema_keyword_base<Json>
+    class enum_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         Json value_;
 
     public:
-        enum_keyword(const uri& path, const Json& sch)
-            : schema_keyword_base<Json>(path), value_(sch)
+        enum_validator(const uri& path, const Json& sch)
+            : keyword_validator_base<Json>(path), value_(sch)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<enum_validator>(this->reference().resolve(base_uri), Json(value_));
         }
@@ -2040,19 +2125,19 @@ namespace jsonschema {
     // const_validator
 
     template <class Json>
-    class const_keyword : public schema_keyword_base<Json>
+    class const_validator : public keyword_validator_base<Json>
     {        
         using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
 
         Json value_;
 
     public:
-        const_keyword(const uri& path, const Json& sch)
-            : schema_keyword_base<Json>(path), value_(sch)
+        const_validator(const uri& path, const Json& sch)
+            : keyword_validator_base<Json>(path), value_(sch)
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<const_validator>(this->reference().resolve(base_uri), Json(value_));
         }
@@ -2077,7 +2162,7 @@ namespace jsonschema {
     };
 
     template <class Json>
-    class type_keyword : public schema_keyword_base<Json>
+    class type_validator : public keyword_validator_base<Json>
     {
         using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
 
@@ -2085,29 +2170,29 @@ namespace jsonschema {
         std::vector<std::string> expected_types_;
 
     public:
-        type_keyword(const type_keyword&) = delete;
-        type_keyword& operator=(const type_keyword&) = delete;
-        type_keyword(type_keyword&&) = default;
-        type_keyword& operator=(type_keyword&&) = default;
+        type_validator(const type_validator&) = delete;
+        type_validator& operator=(const type_validator&) = delete;
+        type_validator(type_validator&&) = default;
+        type_validator& operator=(type_validator&&) = default;
 
-        type_keyword(const uri& reference,
+        type_validator(const uri& reference,
             std::vector<keyword_validator_type>&& type_mapping,
             std::vector<std::string>&& expected_types
  )
-            : schema_keyword_base<Json>(std::move(reference)),
+            : keyword_validator_base<Json>(std::move(reference)),
               type_mapping_(std::move(type_mapping)),
               expected_types_(std::move(expected_types))
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<keyword_validator_type> type_mapping;
             for (auto& validator : type_mapping_)
             {
                 if (validator)
                 {
-                    type_mapping.emplace_back(validator->make_keyword(base_uri));
+                    type_mapping.emplace_back(validator->make_validator(base_uri));
                 }
                 else
                 {
