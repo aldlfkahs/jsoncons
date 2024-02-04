@@ -92,7 +92,7 @@ namespace jsonschema {
         {}
 
         recursive_ref_keyword(const uri& base_uri, schema_validator_type&& target)
-            : base_uri_(base_uri), referred_schema_(std::move(target)) {}
+            : schema_keyword_base(base_uri), referred_schema_(std::move(target)) {}
 
         keyword_validator_type make_validator(const jsoncons::uri& base_uri) const override 
         {
