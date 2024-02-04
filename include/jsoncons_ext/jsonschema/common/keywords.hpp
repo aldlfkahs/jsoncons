@@ -92,13 +92,13 @@ namespace jsonschema {
         {}
 
         recursive_ref_keyword(const uri& base_uri, schema_validator_type&& target)
-            : schema_keyword_base(base_uri), referred_schema_(std::move(target)) {}
+            : schema_keyword_base<Json>(base_uri), referred_schema_(std::move(target)) {}
 
         keyword_validator_type make_validator(const jsoncons::uri& base_uri) const override 
         {
             //std::cout << "recursive_ref_keyword.make_validator " << "base_uri: << " << base_uri.string() << ", reference: " << this->reference().string() << "\n\n";
 
-            auto uri = base_uri_.resolve(base_uri);
+            auto uri = this->reference().resolve(base_uri);
             return jsoncons::make_unique<recursive_ref_keyword>(uri, referred_schema_ ? referred_schema_->make_validator(base_uri) : nullptr);
         }
 
@@ -114,7 +114,7 @@ namespace jsonschema {
             }
             else
             {
-                location = relative.resolve(base_uri_);
+                location = this->reference();
             }
             referred_schema_ = schemas.get_schema(location)->make_validator(location);
             referred_schema_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
