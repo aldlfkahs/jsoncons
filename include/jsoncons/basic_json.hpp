@@ -3508,14 +3508,19 @@ namespace jsoncons {
             construct<empty_object_storage>(semantic_tag::none);
         }
 
-        explicit basic_json(const Allocator&) 
-        {
-            construct<empty_object_storage>(semantic_tag::none);
-        }
-
-        basic_json(semantic_tag tag) 
+        explicit basic_json(semantic_tag tag) 
         {
             construct<empty_object_storage>(tag);
+        }
+
+        explicit basic_json(const Allocator& alloc) 
+        {
+            construct<object_storage>(object(alloc), semantic_tag::none);
+        }
+
+        basic_json(semantic_tag tag, const Allocator& alloc) 
+        {
+            construct<object_storage>(object(alloc), tag);
         }
 
         basic_json(const basic_json& other)
