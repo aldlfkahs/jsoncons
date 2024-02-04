@@ -25,12 +25,112 @@
 namespace jsoncons {
 namespace jsonschema {
 
+
+    template <class Json>
+    class ref_keyword : public schema_keyword_base<Json>
+    {
+        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using schema_validator_type = std::unique_ptr<schema_validator<Json>>;
+
+        schema_validator_type referred_schema_;
+
+    public:
+        ref_keyword<Json>(const uri& base_uri) : schema_keyword_base<Json>(base_uri)
+        {}
+
+        ref_keyword(const uri& base_uri, schema_validator_type&& target)
+            : schema_keyword_base<Json>(base_uri), referred_schema_(std::move(target)) {}
+
+        void set_referred_schema(schema_validator_type&& target) { referred_schema_ = std::move(target); }
+
+        keyword_validator_type make_validator(const uri& base_uri) const override 
+        {
+            static uri s = uri("#");
+            uri abs{s};
+
+            schema_validator_type referred_schema;
+            if (referred_schema_)
+            {
+                referred_schema = referred_schema_->make_validator(base_uri);
+                abs = referred_schema_->reference().resolve(base_uri);
+            }
+
+            return jsoncons::make_unique<ref_keyword>(abs, std::move(referred_schema));
+        }
+
+    private:
+
+        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override
+        {
+            //std::cout << "ref_keyword location::do_resolve_recursive_refs: " << reference().string()
+            //    << "\n  base: " << base.string() << ", has_recursive_anchor: " << has_recursive_anchor << "\n\n";
+
+            JSONCONS_ASSERT(referred_schema_)
+
+            if (has_recursive_anchor)
+            {
+                referred_schema_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
+            }
+            else
+            {
+                referred_schema_->resolve_recursive_refs(referred_schema_->reference(), referred_schema_->is_recursive_anchor(), schemas);
+            }
+        }
+    };
+
+
+    template <class Json>
+    class recursive_ref_keyword : public schema_keyword_base<Json>
+    {
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
+        using schema_validator_type = std::unique_ptr<schema_validator<Json>>;
+
+        schema_validator_type referred_schema_;
+
+    public:
+        recursive_ref_keyword(const uri& base_uri) : schema_keyword_base<Json>(base_uri), referred_schema_(nullptr)
+        {}
+
+        recursive_ref_keyword(const uri& base_uri, schema_validator_type&& target)
+            : base_uri_(base_uri), referred_schema_(std::move(target)) {}
+
+        keyword_validator_type make_validator(const jsoncons::uri& base_uri) const override 
+        {
+            //std::cout << "recursive_ref_keyword.make_validator " << "base_uri: << " << base_uri.string() << ", reference: " << this->reference().string() << "\n\n";
+
+            auto uri = base_uri_.resolve(base_uri);
+            return jsoncons::make_unique<recursive_ref_keyword>(uri, referred_schema_ ? referred_schema_->make_validator(base_uri) : nullptr);
+        }
+
+    private:
+
+        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override
+        {
+            uri relative("#");
+            uri location;
+            if (has_recursive_anchor)
+            {
+                location = relative.resolve(base);
+            }
+            else
+            {
+                location = relative.resolve(base_uri_);
+            }
+            referred_schema_ = schemas.get_schema(location)->make_validator(location);
+            referred_schema_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
+            //std::cout << "recursive_ref_keyword::do_resolve_recursive_refs location: " << reference().string()
+            //    << "\n  base: " << base.string() << ", has_recursive_anchor: " << has_recursive_anchor 
+            //    << "\n  location: " << location.string() << "\n\n";
+        }
+    };
+
+
     // contentEncoding
 
     template <class Json>
     class content_encoding_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         std::string content_encoding_;
 
@@ -41,7 +141,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<content_encoding_validator>(this->reference().resolve(base_uri), content_encoding_);
         }
@@ -50,42 +150,6 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/) override 
         {
         }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter,
-            Json&) const final
-        {
-            if (content_encoding_ == "base64")
-            {
-                auto s = instance.template as<jsoncons::string_view>();
-                std::string content;
-                auto retval = jsoncons::decode_base64(s.begin(), s.end(), content);
-                if (retval.ec != jsoncons::conv_errc::success)
-                {
-                    reporter.error(validation_output("contentEncoding", 
-                                                     this->reference(), 
-                                                     instance_location.to_uri_fragment(), 
-                                                     "Content is not a base64 string"));
-                    if (reporter.fail_early())
-                    {
-                        return;
-                    }
-                }
-            }
-            else if (!content_encoding_.empty())
-            {
-                reporter.error(validation_output("contentEncoding", 
-                    this->reference(),
-                    instance_location.to_uri_fragment(), 
-                    "unable to check for contentEncoding '" + content_encoding_ + "'"));
-                if (reporter.fail_early())
-                {
-                    return;
-                }
-            }
-        }
     };
 
     // contentMediaType
@@ -93,7 +157,7 @@ namespace jsonschema {
     template <class Json>
     class content_media_type_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         std::string content_media_type_;
 
@@ -104,7 +168,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<content_media_type_validator>(this->reference().resolve(base_uri), content_media_type_);
         }
@@ -113,29 +177,6 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
         }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter,
-            Json&) const final
-        {
-            if (content_media_type_ == "application/Json")
-            {
-                auto sv = instance.as_string_view();
-                json_string_reader reader(sv);
-                std::error_code ec;
-                reader.read(ec);
-
-                if (ec)
-                {
-                    reporter.error(validation_output("contentMediaType", 
-                                                     this->reference(), 
-                                                     instance_location.to_uri_fragment(), 
-                                                     std::string("Content is not JSON: ") + ec.message()));
-                }
-            }
-        }
     };
 
     // format 
@@ -143,7 +184,7 @@ namespace jsonschema {
     template <class Json>
     class format_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         format_checker format_check_;
 
@@ -154,7 +195,7 @@ namespace jsonschema {
 
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<format_validator>(this->reference().resolve(base_uri), format_check_);
         }
@@ -162,24 +203,6 @@ namespace jsonschema {
     private:
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
-        }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter,
-            Json&) const final
-        {
-            if (format_check_ != nullptr) 
-            {
-                auto s = instance.template as<std::string>();
-
-                format_check_(this->reference(), instance_location, s, reporter);
-                if (reporter.error_count() > 0 && reporter.fail_early())
-                {
-                    return;
-                }
-            }
         }
     };
 
@@ -189,7 +212,7 @@ namespace jsonschema {
     template <class Json>
     class pattern_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         std::string pattern_string_;
         std::regex regex_;
@@ -202,7 +225,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<pattern_validator>(this->reference().resolve(base_uri), pattern_string_, regex_);
         }
@@ -212,37 +235,12 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
         }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter,
-            Json&) const final
-        {
-            auto s = instance.template as<std::string>();
-            if (!std::regex_search(s, regex_))
-            {
-                std::string message("String \"");
-                message.append(s);
-                message.append("\" does not match pattern \"");
-                message.append(pattern_string_);
-                message.append("\"");
-                reporter.error(validation_output("pattern", 
-                    this->reference(),
-                    instance_location.to_uri_fragment(), 
-                    std::move(message)));
-                if (reporter.fail_early())
-                {
-                    return;
-                }
-            }
-        }
     };
 #else
     template <class Json>
     class pattern_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
     public:
         pattern_keyword(const uri& reference)
@@ -250,21 +248,13 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<pattern_validator>(this->reference().resolve(base_uri));
         }
 
     private:
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
-
-        void do_validate(const Json&, 
-            const jsonpointer::json_pointer&,
-            std::unordered_set<std::string>&, 
-            error_reporter&,
-            Json&) const final
         {
         }
     };
@@ -275,7 +265,7 @@ namespace jsonschema {
     template <class Json>
     class max_length_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         std::size_t max_length_;
     public:
@@ -284,7 +274,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<max_length_validator>(this->reference().resolve(base_uri), max_length_);
         }
@@ -294,28 +284,6 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
         }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter,
-            Json&) const final
-        {
-            auto sv = instance.as_string_view();
-            std::size_t length = unicode_traits::count_codepoints(sv.data(), sv.size());
-            if (length > max_length_)
-            {
-                reporter.error(validation_output("maxLength", 
-                                                 this->reference(), 
-                                                 instance_location.to_uri_fragment(), 
-                                                 std::string("Expected maxLength: ") + std::to_string(max_length_)
-                    + ", actual: " + std::to_string(length)));
-                if (reporter.fail_early())
-                {
-                    return;
-                }
-            }          
-        }
     };
 
     // maxItems
@@ -323,7 +291,7 @@ namespace jsonschema {
     template <class Json>
     class max_items_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         std::size_t max_items_;
     public:
@@ -332,7 +300,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<max_items_validator>(this->reference().resolve(base_uri), max_items_);
         }
@@ -342,27 +310,6 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
         }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter,
-            Json&) const final
-        {
-            if (instance.size() > max_items_)
-            {
-                std::string message("Expected maximum item count: " + std::to_string(max_items_));
-                message.append(", found: " + std::to_string(instance.size()));
-                reporter.error(validation_output("maxItems", 
-                                                 this->reference(),
-                                                 instance_location.to_uri_fragment(), 
-                                                 std::move(message)));
-                if (reporter.fail_early())
-                {
-                    return;
-                }
-            }          
-        }
     };
 
     // minItems
@@ -370,7 +317,7 @@ namespace jsonschema {
     template <class Json>
     class min_items_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
+        using keyword_validator_type = typename schema_keyword<Json>::keyword_validator_type;
 
         std::size_t min_items_;
     public:
@@ -379,7 +326,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<min_items_validator>(this->reference().resolve(base_uri), min_items_);
         }
@@ -389,27 +336,6 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
         }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter,
-            Json&) const final
-        {
-            if (instance.size() < min_items_)
-            {
-                std::string message("Expected maximum item count: " + std::to_string(min_items_));
-                message.append(", found: " + std::to_string(instance.size()));
-                reporter.error(validation_output("minItems", 
-                                                 this->reference(),
-                                                 instance_location.to_uri_fragment(), 
-                                                 std::move(message)));
-                if (reporter.fail_early())
-                {
-                    return;
-                }
-            }          
-        }
     };
 
     // items
@@ -418,7 +344,7 @@ namespace jsonschema {
     class items_array_keyword : public schema_keyword_base<Json>
     {
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
-        using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
+        using keyword_validator_type = typename schema_keyword<Json>::keyword_validator_type;
 
         std::vector<schema_validator_type> item_validators_;
         schema_validator_type additional_items_validator_;
@@ -432,18 +358,18 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<schema_validator_type> item_validators;
             for (auto& validator : item_validators_)
             {
-                item_validators.push_back(validator->make_keyword(base_uri));
+                item_validators.push_back(validator->make_validator(base_uri));
             }
             schema_validator_type additional_items_validator; 
             
             if (additional_items_validator_)
             {
-                additional_items_validator = additional_items_validator_->make_keyword(base_uri);
+                additional_items_validator = additional_items_validator_->make_validator(base_uri);
             }
 
             return jsoncons::make_unique<items_array_validator>(this->reference().resolve(base_uri), std::move(item_validators),
@@ -463,36 +389,6 @@ namespace jsonschema {
                 additional_items_validator_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
             }
         }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>& evaluated_properties, 
-            error_reporter& reporter,
-            Json& patch) const final
-        {
-            size_t index = 0;
-            auto validator_it = item_validators_.cbegin();
-
-            for (const auto& item : instance.array_range()) 
-            {
-                jsonpointer::json_pointer pointer(instance_location);
-
-                if (validator_it != item_validators_.cend())
-                {
-                    pointer /= index++;
-                    (*validator_it)->validate(item, pointer, evaluated_properties, reporter, patch);
-                    ++validator_it;
-                }
-                else if (additional_items_validator_ != nullptr)
-                {
-                    pointer /= index++;
-                    additional_items_validator_->validate(item, pointer, evaluated_properties, reporter, patch);
-                }
-                else
-                    break;
-
-            }
-        }
     };
 
     // contains
@@ -500,7 +396,7 @@ namespace jsonschema {
     template <class Json>
     class contains_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
+        using keyword_validator_type = typename schema_keyword<Json>::keyword_validator_type;
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
 
         schema_validator_type validator_;
@@ -512,12 +408,12 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             schema_validator_type validator;
             if (validator_)
             {
-                validator = validator_->make_keyword(base_uri);
+                validator = validator_->make_validator(base_uri);
             }
 
             return jsoncons::make_unique<contains_validator>(this->reference().resolve(base_uri),
@@ -533,48 +429,12 @@ namespace jsonschema {
                 validator_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
             }
         }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>& evaluated_properties, 
-            error_reporter& reporter,
-            Json& patch) const final
-        {
-
-            if (validator_) 
-            {
-                bool contained = false;
-                collecting_error_reporter local_reporter;
-                for (const auto& item : instance.array_range()) 
-                {
-                    std::size_t mark = local_reporter.errors.size();
-                    validator_->validate(item, instance_location, evaluated_properties, local_reporter, patch);
-                    if (mark == local_reporter.errors.size()) 
-                    {
-                        contained = true;
-                        break;
-                    }
-                }
-                if (!contained)
-                {
-                    reporter.error(validation_output("contains", 
-                                                     this->reference(), 
-                                                     instance_location.to_uri_fragment(), 
-                                                     "Expected at least one array item to match \"contains\" schema", 
-                                                     local_reporter.errors));
-                    if (reporter.fail_early())
-                    {
-                        return;
-                    }
-                }
-            }
-        }
     };
 
     template <class Json>
     class items_object_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
+        using keyword_validator_type = typename schema_keyword<Json>::keyword_validator_type;
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
 
         schema_validator_type items_validator_;
@@ -586,12 +446,12 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             schema_validator_type items_validator;
             if (items_validator_)
             {
-                items_validator = items_validator_->make_keyword(base_uri);
+                items_validator = items_validator_->make_validator(base_uri);
             }
             return jsoncons::make_unique<items_object_validator>(this->reference().resolve(base_uri),
                 std::move(items_validator));
@@ -606,25 +466,6 @@ namespace jsonschema {
                 items_validator_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
             }
         }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>& evaluated_properties, 
-            error_reporter& reporter,
-            Json& patch) const final
-        {
-            size_t index = 0;
-            if (items_validator_)
-            {
-                for (const auto& i : instance.array_range()) 
-                {
-                    jsonpointer::json_pointer pointer(instance_location);
-                    pointer /= index;
-                    items_validator_->validate(i, pointer, evaluated_properties, reporter, patch);
-                    index++;
-                }
-            }
-        }
     };
 
     // uniqueItems
@@ -632,7 +473,7 @@ namespace jsonschema {
     template <class Json>
     class unique_items_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         bool are_unique_;
     public:
@@ -641,7 +482,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<unique_items_validator>(this->reference().resolve(base_uri),
                 are_unique_);
@@ -652,40 +493,6 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
         }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter,
-            Json&) const final
-        {
-            if (are_unique_ && !array_has_unique_items(instance))
-            {
-                reporter.error(validation_output("uniqueItems", 
-                                                 this->reference(), 
-                                                 instance_location.to_uri_fragment(), 
-                                                 "Array items are not unique"));
-                if (reporter.fail_early())
-                {
-                    return;
-                }
-            }
-        }
-
-        static bool array_has_unique_items(const Json& a) 
-        {
-            for (auto it = a.array_range().begin(); it != a.array_range().end(); ++it) 
-            {
-                for (auto jt = it+1; jt != a.array_range().end(); ++jt) 
-                {
-                    if (*it == *jt) 
-                    {
-                        return false; // contains duplicates 
-                    }
-                }
-            }
-            return true; // elements are unique
-        }
     };
 
     // minLength
@@ -693,7 +500,7 @@ namespace jsonschema {
     template <class Json>
     class min_length_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         std::size_t min_length_;
 
@@ -703,7 +510,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<min_length_validator>(this->reference().resolve(base_uri),
                 min_length_);
@@ -714,28 +521,6 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
         }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter,
-            Json&) const final
-        {
-            auto sv = instance.as_string_view();
-            std::size_t length = unicode_traits::count_codepoints(sv.data(), sv.size());
-            if (length < min_length_) 
-            {
-                reporter.error(validation_output("minLength", 
-                                                 this->reference(), 
-                                                 instance_location.to_uri_fragment(), 
-                                                 std::string("Expected minLength: ") + std::to_string(min_length_)
-                                          + ", actual: " + std::to_string(length)));
-                if (reporter.fail_early())
-                {
-                    return;
-                }
-            }
-        }
     };
 
     // string 
@@ -743,7 +528,7 @@ namespace jsonschema {
     template <class Json>
     class string_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = typename std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = typename std::unique_ptr<schema_keyword<Json>>;
 
         std::vector<keyword_validator_type> validators_;
     public:
@@ -753,12 +538,12 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<keyword_validator_type> validators;
             for (auto& validator : validators_)
             {
-                validators.emplace_back(validator->make_keyword(base_uri));
+                validators.emplace_back(validator->make_validator(base_uri));
             }
 
             return jsoncons::make_unique<string_validator>(this->reference().resolve(base_uri),
@@ -774,21 +559,6 @@ namespace jsonschema {
                 validator->resolve_recursive_refs(base, has_recursive_anchor, schemas);
             }
         }
-        void do_validate(const Json& instance,
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>& evaluated_properties,
-            error_reporter& reporter,
-            Json& patch) const final
-        {
-            for (const auto& validator : validators_)
-            {
-                validator->validate(instance, instance_location, evaluated_properties, reporter, patch);
-                if (reporter.error_count() > 0 && reporter.fail_early())
-                {
-                    return;
-                }
-            }
-        }
     };
 
     // not
@@ -796,7 +566,7 @@ namespace jsonschema {
     template <class Json>
     class not_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
+        using keyword_validator_type = typename schema_keyword<Json>::keyword_validator_type;
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
 
         schema_validator_type rule_;
@@ -809,12 +579,12 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             schema_validator_type rule;
             if (rule_)
             {
-                rule = rule_->make_keyword(base_uri);
+                rule = rule_->make_validator(base_uri);
             }
 
             return jsoncons::make_unique<not_validator>(this->reference().resolve(base_uri),
@@ -831,29 +601,12 @@ namespace jsonschema {
             }
         }
 
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>& evaluated_properties, 
-            error_reporter& reporter, 
-            Json& patch) const final
-        {
-            collecting_error_reporter local_reporter;
-            rule_->validate(instance, instance_location, evaluated_properties, local_reporter, patch);
-
-            if (local_reporter.errors.empty())
-            {
-                reporter.error(validation_output("not", 
-                                                 this->reference(), 
-                                                 instance_location.to_uri_fragment(), 
-                                                 "Instance must not be valid against schema"));
-            }
-        }
     };
 
     template <class Json,class Criterion>
     class combining_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
+        using keyword_validator_type = typename schema_keyword<Json>::keyword_validator_type;
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
 
         std::vector<schema_validator_type> validators_;
@@ -866,12 +619,12 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<schema_validator_type> validators;
             for (auto& validator : validators_)
             {
-                validators.emplace_back(validator->make_keyword(base_uri));
+                validators.emplace_back(validator->make_validator(base_uri));
             }
 
             return jsoncons::make_unique<combining_validator>(this->reference().resolve(base_uri),
@@ -887,48 +640,12 @@ namespace jsonschema {
                 validator->resolve_recursive_refs(base, has_recursive_anchor, schemas);
             }
         }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>& evaluated_properties, 
-            error_reporter& reporter, 
-            Json& patch) const final
-        {
-            std::cout << "combining_validator.do_validate " << "keywordLocation: << " << this->reference().string() << ", instanceLocation:" << instance_location.to_string() << "\n";
-
-            size_t count = 0;
-
-            collecting_error_reporter local_reporter;
-
-            bool is_complete = false;
-            for (auto& s : validators_) 
-            {
-                std::size_t mark = local_reporter.errors.size();
-                s->validate(instance, instance_location, evaluated_properties, local_reporter, patch);
-                if (!is_complete)
-                {
-                    if (mark == local_reporter.errors.size())
-                        count++;
-                    if (Criterion::is_complete(instance, instance_location, reporter, local_reporter, count))
-                        is_complete = true;
-                }
-            }
-
-            if (count == 0)
-            {
-                reporter.error(validation_output(Criterion::key(), 
-                                                 this->reference(), 
-                                                 instance_location.to_uri_fragment(), 
-                                                 "No schema matched, but one of them is required to match", 
-                                                 local_reporter.errors));
-            }
-        }
     };
 
     template <class Json,class T>
     class maximum_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         T value_;
 
@@ -938,7 +655,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<maximum_validator>(this->reference().resolve(base_uri),
                 value_);
@@ -949,27 +666,12 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override
         {
         }
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter, 
-            Json&) const final 
-        {
-            T value = instance.template as<T>(); 
-            if (value > value_)
-            {
-                reporter.error(validation_output("maximum", 
-                    this->reference(), 
-                    instance_location.to_uri_fragment(), 
-                    instance.template as<std::string>() + " exceeds maximum of " + std::to_string(value_)));
-            }
-        }
     };
 
     template <class Json,class T>
     class exclusive_maximum_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         T value_;
 
@@ -979,7 +681,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<exclusive_maximum_validator>(this->reference().resolve(base_uri),
                 value_);
@@ -990,27 +692,12 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
         }
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter, 
-            Json&) const final 
-        {
-            T value = instance.template as<T>(); 
-            if (value >= value_)
-            {
-                reporter.error(validation_output("exclusiveMaximum", 
-                    this->reference(), 
-                    instance_location.to_uri_fragment(), 
-                    instance.template as<std::string>() + " exceeds exclusiveMaximum of " + std::to_string(value_)));
-            }
-        }
     };
 
     template <class Json,class T>
     class minimum_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         T value_;
 
@@ -1020,7 +707,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             //std::cout << "make_validator minimum " << this->reference().string() << ", base: " << base_uri.string() << ", resolve: " << this->reference().resolve(base_uri).string() << "\n\n"; 
 
@@ -1033,27 +720,12 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
         }
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter, 
-            Json&) const final 
-        {
-            T value = instance.template as<T>(); 
-            if (value < value_)
-            {
-                reporter.error(validation_output("minimum", 
-                    this->reference(), 
-                    instance_location.to_uri_fragment(), 
-                    instance.template as<std::string>() + " exceeds minimum of " + std::to_string(value_)));
-            }
-        }
     };
 
     template <class Json,class T>
     class exclusive_minimum_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         T value_;
 
@@ -1063,7 +735,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<exclusive_minimum_validator>(this->reference().resolve(base_uri),
                 value_);
@@ -1074,27 +746,12 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override
         {
         }
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter, 
-            Json&) const final 
-        {
-            T value = instance.template as<T>(); 
-            if (value <= value_)
-            {
-                reporter.error(validation_output("exclusiveMinimum", 
-                    this->reference(), 
-                    instance_location.to_uri_fragment(), 
-                    instance.template as<std::string>() + " exceeds exclusiveMinimum of " + std::to_string(value_)));
-            }
-        }
     };
 
     template <class Json>
     class multiple_of_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         double value_;
 
@@ -1104,7 +761,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<multiple_of_validator>(this->reference().resolve(base_uri),
                 value_);
@@ -1115,37 +772,12 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
         }
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter, 
-            Json&) const final
-        {
-            double value = instance.template as<double>();
-            if (value != 0) // Exclude zero
-            {
-                if (!is_multiple_of(value, static_cast<double>(value_)))
-                {
-                    reporter.error(validation_output("multipleOf", 
-                        this->reference(),
-                        instance_location.to_uri_fragment(), 
-                        instance.template as<std::string>() + " is not a multiple of " + std::to_string(value_)));
-                }
-            }
-        }
-
-        static bool is_multiple_of(double x, double multiple_of) 
-        {
-            double rem = std::remainder(x, multiple_of);
-            double eps = std::nextafter(x, 0) - x;
-            return std::fabs(rem) < std::fabs(eps);
-        }
     };
 
     template <class Json>
     class integer_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = typename std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = typename std::unique_ptr<schema_keyword<Json>>;
 
         std::vector<keyword_validator_type> validators_;
     public:
@@ -1155,12 +787,12 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<keyword_validator_type> validators;
             for (auto& validator : validators_)
             {
-                validators.emplace_back(validator->make_keyword(base_uri));
+                validators.emplace_back(validator->make_validator(base_uri));
             }
 
             return jsoncons::make_unique<integer_validator>(this->reference().resolve(base_uri),
@@ -1176,38 +808,12 @@ namespace jsonschema {
                 validator->resolve_recursive_refs(base, has_recursive_anchor, schemas);
             }
         }
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>& evaluated_properties, 
-            error_reporter& reporter, 
-            Json& patch) const final
-        {
-            if (!(instance.template is_integer<int64_t>() || (instance.is_double() && static_cast<double>(instance.template as<int64_t>()) == instance.template as<double>())))
-            {
-                reporter.error(validation_output("integer", 
-                                                 this->reference(), 
-                                                 instance_location.to_uri_fragment(), 
-                                                 "Instance is not an integer"));
-                if (reporter.fail_early())
-                {
-                    return;
-                }
-            }
-            for (const auto& validator : validators_)
-            {
-                validator->validate(instance, instance_location, evaluated_properties, reporter, patch);
-                if (reporter.error_count() > 0 && reporter.fail_early())
-                {
-                    return;
-                }
-            }
-        }
     };
 
     template <class Json>
     class number_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = typename std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = typename std::unique_ptr<schema_keyword<Json>>;
 
         std::vector<keyword_validator_type> validators_;
     public:
@@ -1217,12 +823,12 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<keyword_validator_type> validators;
             for (auto& validator : validators_)
             {
-                validators.emplace_back(validator->make_keyword(base_uri));
+                validators.emplace_back(validator->make_validator(base_uri));
             }
 
             return jsoncons::make_unique<number_validator>(this->reference().resolve(base_uri),
@@ -1238,32 +844,6 @@ namespace jsonschema {
                 validator->resolve_recursive_refs(base, has_recursive_anchor, schemas);
             }
         }
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>& evaluated_properties, 
-            error_reporter& reporter, 
-            Json& patch) const final
-        {
-            if (!(instance.template is_integer<int64_t>() || instance.is_double()))
-            {
-                reporter.error(validation_output("number", 
-                                                 this->reference(), 
-                                                 instance_location.to_uri_fragment(), 
-                                                 "Instance is not a number"));
-                if (reporter.fail_early())
-                {
-                    return;
-                }
-            }
-            for (const auto& validator : validators_)
-            {
-                validator->validate(instance, instance_location, evaluated_properties, reporter, patch);
-                if (reporter.error_count() > 0 && reporter.fail_early())
-                {
-                    return;
-                }
-            }
-        }
     };
 
     // null
@@ -1271,7 +851,7 @@ namespace jsonschema {
     template <class Json>
     class null_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
     public:
         null_keyword(const uri& reference)
@@ -1279,7 +859,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<null_validator>(this->reference().resolve(base_uri));
         }
@@ -1289,26 +869,12 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
         }
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter, 
-            Json&) const final
-        {
-            if (!instance.is_null())
-            {
-                reporter.error(validation_output("null", 
-                                                 this->reference(), 
-                                                 instance_location.to_uri_fragment(), 
-                                                 "Expected to be null"));
-            }
-        }
     };
 
     template <class Json>
     class boolean_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
     public:
         boolean_keyword(const uri& reference)
@@ -1316,7 +882,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<boolean_validator>(this->reference().resolve(base_uri));
         }
@@ -1326,20 +892,12 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
         }
-        void do_validate(const Json&, 
-            const jsonpointer::json_pointer&,
-            std::unordered_set<std::string>&, 
-            error_reporter&, 
-            Json&) const final
-        {
-        }
-
     };
 
     template <class Json>
     class required_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         std::vector<std::string> items_;
 
@@ -1355,7 +913,7 @@ namespace jsonschema {
         required_keyword& operator=(const required_keyword&) = delete;
         required_keyword& operator=(required_keyword&&) = default;
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<required_validator>(this->reference().resolve(base_uri),
                 items_);
@@ -1367,27 +925,6 @@ namespace jsonschema {
         {
         }
 
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter, 
-            Json&) const final
-        {
-            for (const auto& key : items_)
-            {
-                if (instance.find(key) == instance.object_range().end())
-                {
-                    reporter.error(validation_output("required", 
-                                                     this->reference(), 
-                                                     instance_location.to_uri_fragment(), 
-                                                     "Required property \"" + key + "\" not found"));
-                    if (reporter.fail_early())
-                    {
-                        return;
-                    }
-                }
-            }
-        }
     };
 
     // maxProperties
@@ -1395,7 +932,7 @@ namespace jsonschema {
     template <class Json>
     class max_properties_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         std::size_t max_properties_;
     public:
@@ -1404,7 +941,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<max_properties_validator>(this->reference().resolve(base_uri), max_properties_);
         }
@@ -1415,26 +952,6 @@ namespace jsonschema {
         {
         }
 
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter,
-            Json&) const final
-        {
-            if (instance.size() > max_properties_)
-            {
-                std::string message("Maximum properties: " + std::to_string(max_properties_));
-                message.append(", found: " + std::to_string(instance.size()));
-                reporter.error(validation_output("maxProperties", 
-                                                 this->reference(), 
-                                                 instance_location.to_uri_fragment(), 
-                                                 std::move(message)));
-                if (reporter.fail_early())
-                {
-                    return;
-                }
-            }
-        }
     };
 
     // minProperties
@@ -1442,7 +959,7 @@ namespace jsonschema {
     template <class Json>
     class min_properties_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         std::size_t min_properties_;
     public:
@@ -1451,7 +968,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<min_properties_validator>(this->reference().resolve(base_uri), min_properties_);
         }
@@ -1462,32 +979,12 @@ namespace jsonschema {
         {
         }
 
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter,
-            Json&) const final
-        {
-            if (instance.size() < min_properties_)
-            {
-                std::string message("Maximum properties: " + std::to_string(min_properties_));
-                message.append(", found: " + std::to_string(instance.size()));
-                reporter.error(validation_output("minProperties", 
-                                                 this->reference(), 
-                                                 instance_location.to_uri_fragment(), 
-                                                 std::move(message)));
-                if (reporter.fail_early())
-                {
-                    return;
-                }
-            }
-        }
     };
 
     template <class Json>
     class object_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
+        using keyword_validator_type = typename schema_keyword<Json>::keyword_validator_type;
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
 
         std::vector<keyword_validator_type> general_validators_;
@@ -1528,18 +1025,18 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<keyword_validator_type> general_validators;
             for (auto& validator : general_validators_)
             {
-                general_validators.emplace_back(validator->make_keyword(base_uri));
+                general_validators.emplace_back(validator->make_validator(base_uri));
             }
 
             std::map<std::string, schema_validator_type> properties;
             for (auto& item : properties_)
             {
-                properties.emplace(item.first, item.second->make_keyword(base_uri));
+                properties.emplace(item.first, item.second->make_validator(base_uri));
             }
 
 
@@ -1547,31 +1044,31 @@ namespace jsonschema {
             std::vector<std::pair<std::regex, schema_validator_type>> pattern_properties;
             for (auto& item : pattern_properties_)
             {
-                pattern_properties.emplace_back(item.first, item.second->make_keyword(base_uri));
+                pattern_properties.emplace_back(item.first, item.second->make_validator(base_uri));
             }
         #endif
             schema_validator_type additional_properties;
             if (additional_properties_)
             {
-                additional_properties = additional_properties_->make_keyword(base_uri);
+                additional_properties = additional_properties_->make_validator(base_uri);
             }
 
             std::map<std::string, keyword_validator_type> dependent_required;
             for (auto& item : dependent_required_)
             {
-                dependent_required.emplace(item.first, item.second->make_keyword(base_uri));
+                dependent_required.emplace(item.first, item.second->make_validator(base_uri));
             }
 
             std::map<std::string, schema_validator_type> dependent_schemas;
             for (auto& item : dependent_schemas_)
             {
-                dependent_schemas.emplace(item.first, item.second->make_keyword(base_uri));
+                dependent_schemas.emplace(item.first, item.second->make_validator(base_uri));
             }
 
             schema_validator_type property_name_validator;
             if (property_name_validator_)
             {
-                property_name_validator = property_name_validator_->make_keyword(base_uri);
+                property_name_validator = property_name_validator_->make_validator(base_uri);
             }
 
             return jsoncons::make_unique<object_validator>(this->reference().resolve(base_uri),
@@ -1617,163 +1114,12 @@ namespace jsonschema {
                 property_name_validator_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
         }
 
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>& evaluated_properties, 
-            error_reporter& reporter, 
-            Json& patch) const final
-        {
-            std::unordered_set<std::string> local_evaluated_properties;
-
-            for (const auto& validator : general_validators_)
-            {
-                validator->validate(instance, instance_location, evaluated_properties, reporter, patch);
-                if (reporter.error_count() > 0 && reporter.fail_early())
-                {
-                    return;
-                }
-            }
-
-            for (const auto& prop : instance.object_range()) 
-            {
-                jsonpointer::json_pointer pointer(instance_location);
-                pointer /= prop.key();
-
-                if (property_name_validator_)
-                    property_name_validator_->validate(prop.key(), instance_location, local_evaluated_properties, reporter, patch);
-
-                bool a_prop_or_pattern_matched = false;
-                auto properties_it = properties_.find(prop.key());
-
-                // check if it is in "properties"
-                if (properties_it != properties_.end()) 
-                {
-                    a_prop_or_pattern_matched = true;
-
-                    std::size_t error_count = reporter.error_count();
-                    properties_it->second->validate(prop.value(), pointer, local_evaluated_properties, reporter, patch);
-                    if (reporter.error_count() == error_count)
-                    {
-                        local_evaluated_properties.insert(prop.key());
-                    }
-                }
-                // Any property that doesn't match any of the property names in the properties keyword is ignored by this keyword.
-
-    #if defined(JSONCONS_HAS_STD_REGEX)
-
-                // check all matching "patternProperties"
-                for (auto& schema_pp : pattern_properties_)
-                    if (std::regex_search(prop.key(), schema_pp.first)) 
-                    {
-                        a_prop_or_pattern_matched = true;
-                        std::size_t error_count = reporter.error_count();
-                        schema_pp.second->validate(prop.value(), pointer, local_evaluated_properties, reporter, patch);
-                        if (reporter.error_count() == error_count)
-                        {
-                            local_evaluated_properties.insert(prop.key());
-                        }
-                    }
-    #endif
-
-                // finally, check "additionalProperties" 
-                //std::cout << "object_validator a_prop_or_pattern_matched " << a_prop_or_pattern_matched << ", " << bool(additional_properties_);
-                if (!a_prop_or_pattern_matched && additional_properties_) 
-                {
-                    //std::cout << " !!!additionalProperties!!!";
-
-                    collecting_error_reporter local_reporter;
-
-                    additional_properties_->validate(prop.value(), pointer, local_evaluated_properties, local_reporter, patch);
-                    if (!local_reporter.errors.empty())
-                    {
-                        reporter.error(validation_output("additionalProperties", 
-                                                         additional_properties_->reference().string(),
-                                                         instance_location.to_uri_fragment(), 
-                                                         "Additional prop \"" + prop.key() + "\" found but was invalid."));
-                        if (reporter.fail_early())
-                        {
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        local_evaluated_properties.insert(prop.key());
-                    }
-
-                }
-                //std::cout << "\n";
-            }
-
-            // reverse search
-            for (auto const& prop : properties_) 
-            {
-                const auto finding = instance.find(prop.first);
-                if (finding == instance.object_range().end()) 
-                { 
-                    // If prop is not in instance
-                    auto default_value = prop.second->get_default_value();
-                    if (default_value) 
-                    { 
-                        // If default value is available, update patch
-                        jsonpointer::json_pointer pointer(instance_location);
-                        pointer /= prop.first;
-
-                        update_patch(patch, pointer, std::move(*default_value));
-                    }
-                }
-            }
-
-            for (const auto& dep : dependent_required_) 
-            {
-                auto prop = instance.find(dep.first);
-                if (prop != instance.object_range().end()) 
-                {
-                    // if dependency-prop is present in instance
-                    jsonpointer::json_pointer pointer(instance_location);
-                    pointer /= dep.first;
-                    dep.second->validate(instance, pointer, local_evaluated_properties, reporter, patch); // validate
-                }
-            }
-
-            for (const auto& dep : dependent_schemas_) 
-            {
-                auto prop = instance.find(dep.first);
-                if (prop != instance.object_range().end()) 
-                {
-                    // if dependency-prop is present in instance
-                    jsonpointer::json_pointer pointer(instance_location);
-                    pointer /= dep.first;
-                    dep.second->validate(instance, pointer, local_evaluated_properties, reporter, patch); // validate
-                }
-            }
-
-            //std::cout << "Evaluated properties\n";
-            //for (const auto& s : local_evaluated_properties)
-            //{
-            //    std::cout << "    " << s << "\n";
-            //}
-            //std::cout << "\n";
-
-            for (auto&& name : local_evaluated_properties)
-            {
-                evaluated_properties.emplace(std::move(name));
-            }
-        }
-
-        void update_patch(Json& patch, const jsonpointer::json_pointer& instance_location, Json&& default_value) const
-        {
-            Json j;
-            j.try_emplace("op", "add"); 
-            j.try_emplace("path", instance_location.to_uri_fragment()); 
-            j.try_emplace("value", std::forward<Json>(default_value)); 
-            patch.push_back(std::move(j));
-        }
     };
 
     template <class Json>
     class unevaluated_properties_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
+        using keyword_validator_type = typename schema_keyword<Json>::keyword_validator_type;
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
 
         schema_validator_type validator_;
@@ -1787,12 +1133,12 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             schema_validator_type validator;
             if (validator_)
             {
-                validator = validator_->make_keyword(base_uri);
+                validator = validator_->make_validator(base_uri);
             }
             return jsoncons::make_unique<unevaluated_properties_validator>(this->reference().resolve(base_uri),
                 std::move(validator));
@@ -1807,40 +1153,6 @@ namespace jsonschema {
                 validator_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
             }
         }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>& evaluated_properties, 
-            error_reporter& reporter, 
-            Json& patch) const final
-        {
-            //std::cout << "Evaluated properties\n";
-            //for (const auto& s : evaluated_properties)
-            //{
-            //    std::cout << "    " << s << "\n";
-            //}
-            //std::cout << "\n";
-
-            if (validator_)
-            {
-                for (const auto& prop : instance.object_range()) 
-                {
-                    auto prop_it = evaluated_properties.find(prop.key());
-
-                    // check if it is in "evaluated_properties"
-                    if (prop_it == evaluated_properties.end()) 
-                    {
-                        
-                        std::size_t error_count = reporter.error_count();
-                        validator_->validate(prop.value(), instance_location, evaluated_properties, reporter, patch);
-                        if (reporter.error_count() == error_count)
-                        {
-                            evaluated_properties.insert(prop.key());
-                        }
-                    }
-                }
-            }
-        }
     };
 
     // array
@@ -1848,7 +1160,7 @@ namespace jsonschema {
     template <class Json>
     class array_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
+        using keyword_validator_type = typename schema_keyword<Json>::keyword_validator_type;
 
         std::vector<keyword_validator_type> validators_;
     public:
@@ -1857,12 +1169,12 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<keyword_validator_type> validators;
             for (auto& validator : validators_)
             {
-                validators.emplace_back(validator->make_keyword(base_uri));
+                validators.emplace_back(validator->make_validator(base_uri));
             }
 
             return jsoncons::make_unique<array_validator>(this->reference().resolve(base_uri),
@@ -1878,28 +1190,12 @@ namespace jsonschema {
                 validator->resolve_recursive_refs(base, has_recursive_anchor, schemas);
             }
         }
-
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>& evaluated_properties, 
-            error_reporter& reporter, 
-            Json& patch) const final
-        {
-            for (const auto& validator : validators_)
-            {
-                validator->validate(instance, instance_location, evaluated_properties, reporter, patch);
-                if (reporter.error_count() > 0 && reporter.fail_early())
-                {
-                    return;
-                }
-            }
-        }
-    };
+   };
 
     template <class Json>
     class conditional_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
+        using keyword_validator_type = typename schema_keyword<Json>::keyword_validator_type;
         using schema_validator_type = typename schema_validator<Json>::schema_validator_type;
 
         schema_validator_type if_validator_;
@@ -1918,22 +1214,22 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             schema_validator_type if_validator;
             if (if_validator_)
             {
-                if_validator = if_validator_->make_keyword(base_uri);
+                if_validator = if_validator_->make_validator(base_uri);
             }
             schema_validator_type then_validator;
             if (then_validator_)
             {
-                then_validator = then_validator_->make_keyword(base_uri);
+                then_validator = then_validator_->make_validator(base_uri);
             }
             schema_validator_type else_validator;
             if (else_validator_)
             {
-                else_validator = else_validator_->make_keyword(base_uri);
+                else_validator = else_validator_->make_validator(base_uri);
             }
 
             return jsoncons::make_unique<conditional_validator>(this->reference().resolve(base_uri), 
@@ -1957,29 +1253,6 @@ namespace jsonschema {
                 else_validator_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
             }
         }
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>& evaluated_properties, 
-            error_reporter& reporter, 
-            Json& patch) const final
-        {
-            if (if_validator_) 
-            {
-                collecting_error_reporter local_reporter;
-
-                if_validator_->validate(instance, instance_location, evaluated_properties, local_reporter, patch);
-                if (local_reporter.errors.empty()) 
-                {
-                    if (then_validator_)
-                        then_validator_->validate(instance, instance_location, evaluated_properties, reporter, patch);
-                } 
-                else 
-                {
-                    if (else_validator_)
-                        else_validator_->validate(instance, instance_location, evaluated_properties, reporter, patch);
-                }
-            }
-        }
     };
 
     // enum_validator
@@ -1987,7 +1260,7 @@ namespace jsonschema {
     template <class Json>
     class enum_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         Json value_;
 
@@ -1997,7 +1270,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<enum_validator>(this->reference().resolve(base_uri), Json(value_));
         }
@@ -2007,34 +1280,6 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
         }
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter,
-            Json&) const final
-        {
-            bool in_range = false;
-            for (const auto& item : value_.array_range())
-            {
-                if (item == instance) 
-                {
-                    in_range = true;
-                    break;
-                }
-            }
-
-            if (!in_range)
-            {
-                reporter.error(validation_output("enum", 
-                                                 this->reference(), 
-                                                 instance_location.to_uri_fragment(), 
-                                                 instance.template as<std::string>() + " is not a valid enum value"));
-                if (reporter.fail_early())
-                {
-                    return;
-                }
-            }
-        }
     };
 
     // const_validator
@@ -2042,7 +1287,7 @@ namespace jsonschema {
     template <class Json>
     class const_keyword : public schema_keyword_base<Json>
     {        
-        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using keyword_validator_type = std::unique_ptr<schema_keyword<Json>>;
 
         Json value_;
 
@@ -2052,7 +1297,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             return jsoncons::make_unique<const_validator>(this->reference().resolve(base_uri), Json(value_));
         }
@@ -2062,24 +1307,12 @@ namespace jsonschema {
         void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
         {
         }
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>&, 
-            error_reporter& reporter,
-            Json&) const final
-        {
-            if (value_ != instance)
-                reporter.error(validation_output("const", 
-                                                 this->reference(), 
-                                                 instance_location.to_uri_fragment(), 
-                                                 "Instance is not const"));
-        }
     };
 
     template <class Json>
     class type_keyword : public schema_keyword_base<Json>
     {
-        using keyword_validator_type = typename keyword_validator<Json>::keyword_validator_type;
+        using keyword_validator_type = typename schema_keyword<Json>::keyword_validator_type;
 
         std::vector<keyword_validator_type> type_mapping_;
         std::vector<std::string> expected_types_;
@@ -2100,14 +1333,14 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_keyword(const uri& base_uri) const final 
+        keyword_validator_type make_validator(const uri& base_uri) const final 
         {
             std::vector<keyword_validator_type> type_mapping;
             for (auto& validator : type_mapping_)
             {
                 if (validator)
                 {
-                    type_mapping.emplace_back(validator->make_keyword(base_uri));
+                    type_mapping.emplace_back(validator->make_validator(base_uri));
                 }
                 else
                 {
@@ -2133,47 +1366,6 @@ namespace jsonschema {
             }
         }
 
-        void do_validate(const Json& instance, 
-            const jsonpointer::json_pointer& instance_location,
-            std::unordered_set<std::string>& evaluated_properties, 
-            error_reporter& reporter, 
-            Json& patch) const final
-        {
-            auto& type = type_mapping_[(uint8_t) instance.type()];
-
-            //std::cout << "anyOf validate " << instance;
-            if (type)
-                type->validate(instance, instance_location, evaluated_properties, reporter, patch);
-            else
-            {
-                std::ostringstream ss;
-                ss << "Expected " << expected_types_.size() << " ";
-                for (std::size_t i = 0; i < expected_types_.size(); ++i)
-                {
-                        if (i > 0)
-                        { 
-                            ss << ", ";
-                            if (i+1 == expected_types_.size())
-                            { 
-                                ss << "or ";
-                            }
-                        }
-                        ss << expected_types_[i];
-                        //std::cout << ", " << i << ". expected " << expected_types_[i];
-                }
-                ss << ", found " << instance.type();
-
-                reporter.error(validation_output("type", 
-                                                 this->reference(), 
-                                                 instance_location.to_uri_fragment(), 
-                                                 ss.str()));
-                if (reporter.fail_early())
-                {
-                    return;
-                }
-            }
-            //std::cout << "\n";
-        }
     };
 
 } // namespace jsonschema
