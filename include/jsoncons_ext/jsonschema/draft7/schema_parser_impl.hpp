@@ -1409,53 +1409,53 @@ namespace draft7 {
         {
             if (type == "null")
             {
-                //type_mapping[(uint8_t)json_type::null_value] = make_null_validator(context);
+                type_mapping[(uint8_t)json_type::null_value] = make_null_validator(context);
             }
             else if (type == "object")
             {
-                //type_mapping[(uint8_t)json_type::object_value] = make_object_validator(context, sch);
+                type_mapping[(uint8_t)json_type::object_value] = make_object_validator(context, sch);
             }
             else if (type == "array")
             {
-                //type_mapping[(uint8_t)json_type::array_value] = make_array_validator(context, sch);
+                type_mapping[(uint8_t)json_type::array_value] = make_array_validator(context, sch);
             }
             else if (type == "string")
             {
-                //type_mapping[(uint8_t)json_type::string_value] = make_string_validator(context, sch);
+                type_mapping[(uint8_t)json_type::string_value] = make_string_validator(context, sch);
                 // For binary types
-                //type_mapping[(uint8_t) json_type::byte_string_value] = make_string_validator(context, sch);
+                type_mapping[(uint8_t) json_type::byte_string_value] = make_string_validator(context, sch);
             }
             else if (type == "boolean")
             {
-                //type_mapping[(uint8_t)json_type::bool_value] = make_boolean_validator(context);
+                type_mapping[(uint8_t)json_type::bool_value] = make_boolean_validator(context);
             }
             else if (type == "integer")
             {
-                //type_mapping[(uint8_t)json_type::int64_value] = make_integer_validator(context, sch, keywords);
-                //type_mapping[(uint8_t)json_type::uint64_value] = make_integer_validator(context, sch, keywords);
-                //type_mapping[(uint8_t)json_type::double_value] = make_integer_validator(context, sch, keywords);
+                type_mapping[(uint8_t)json_type::int64_value] = make_integer_validator(context, sch, keywords);
+                type_mapping[(uint8_t)json_type::uint64_value] = make_integer_validator(context, sch, keywords);
+                type_mapping[(uint8_t)json_type::double_value] = make_integer_validator(context, sch, keywords);
             }
             else if (type == "number")
             {
-                //type_mapping[(uint8_t)json_type::double_value] = make_number_validator(context, sch, keywords);
-                //type_mapping[(uint8_t)json_type::int64_value] =  make_number_validator(context, sch, keywords);
-                //type_mapping[(uint8_t)json_type::uint64_value] =  make_number_validator(context, sch, keywords);
+                type_mapping[(uint8_t)json_type::double_value] = make_number_validator(context, sch, keywords);
+                type_mapping[(uint8_t)json_type::int64_value] =  make_number_validator(context, sch, keywords);
+                type_mapping[(uint8_t)json_type::uint64_value] =  make_number_validator(context, sch, keywords);
             }
             else if (type.empty())
             {
-                //type_mapping[(uint8_t)json_type::null_value] = make_null_validator(context);
-                //type_mapping[(uint8_t)json_type::object_value] = make_object_validator(context, sch);
-                //type_mapping[(uint8_t)json_type::array_value] = make_array_validator(context, sch);
-                //type_mapping[(uint8_t)json_type::string_value] = make_string_validator(context, sch);
+                type_mapping[(uint8_t)json_type::null_value] = make_null_validator(context);
+                type_mapping[(uint8_t)json_type::object_value] = make_object_validator(context, sch);
+                type_mapping[(uint8_t)json_type::array_value] = make_array_validator(context, sch);
+                type_mapping[(uint8_t)json_type::string_value] = make_string_validator(context, sch);
                 // For binary types
-                //type_mapping[(uint8_t) json_type::byte_string_value] = make_string_validator(context, sch);
-                //type_mapping[(uint8_t)json_type::bool_value] = make_boolean_validator(context);
-                //type_mapping[(uint8_t)json_type::int64_value] = make_integer_validator(context, sch, keywords);
-                //type_mapping[(uint8_t)json_type::uint64_value] = make_integer_validator(context, sch, keywords);
-                //type_mapping[(uint8_t)json_type::double_value] = make_integer_validator(context, sch, keywords);
-                //type_mapping[(uint8_t)json_type::double_value] = make_number_validator(context, sch, keywords);
-                //type_mapping[(uint8_t)json_type::int64_value] = make_number_validator(context, sch, keywords);
-                //type_mapping[(uint8_t)json_type::uint64_value] = make_number_validator(context, sch, keywords);
+                type_mapping[(uint8_t) json_type::byte_string_value] = make_string_validator(context, sch);
+                type_mapping[(uint8_t)json_type::bool_value] = make_boolean_validator(context);
+                type_mapping[(uint8_t)json_type::int64_value] = make_integer_validator(context, sch, keywords);
+                type_mapping[(uint8_t)json_type::uint64_value] = make_integer_validator(context, sch, keywords);
+                type_mapping[(uint8_t)json_type::double_value] = make_integer_validator(context, sch, keywords);
+                type_mapping[(uint8_t)json_type::double_value] = make_number_validator(context, sch, keywords);
+                type_mapping[(uint8_t)json_type::int64_value] = make_number_validator(context, sch, keywords);
+                type_mapping[(uint8_t)json_type::uint64_value] = make_number_validator(context, sch, keywords);
             }
         }
 
@@ -1502,6 +1502,728 @@ namespace draft7 {
             return jsoncons::make_unique<type_keyword<Json>>(std::move(reference), 
                 std::move(type_mapping), std::move(expected_types)
          );
+        }
+
+        std::unique_ptr<content_encoding_keyword<Json>> make_content_encoding_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("contentEncoding");
+            if (!sch.is_string())
+            {
+                std::string message("contentEncoding must be a string");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<std::string>();
+            return jsoncons::make_unique<content_encoding_keyword<Json>>(reference, value);
+        }
+
+        std::unique_ptr<string_keyword<Json>> make_string_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.get_absolute_uri();
+
+            std::vector<keyword_keyword_type> validators;
+            auto it = sch.find("maxLength");
+            if (it != sch.object_range().end())
+            {
+                validators.emplace_back(make_max_length_keyword(context, it->value()));
+            }
+
+            it = sch.find("minLength");
+            if (it != sch.object_range().end())
+            {
+                validators.emplace_back(make_min_length_keyword(context, it->value()));
+            }
+
+            it = sch.find("contentEncoding");
+            if (it != sch.object_range().end())
+            {
+                validators.emplace_back(make_content_encoding_keyword(context, it->value()));
+                // If "contentEncoding" is set to "binary", a Json value
+                // of type json_type::byte_string_value is accepted.
+            }
+
+            it = sch.find("contentMediaType");
+            if (it != sch.object_range().end())
+            {
+                validators.emplace_back(make_content_media_type_keyword(context, it->value()));
+            }
+
+#if defined(JSONCONS_HAS_STD_REGEX)
+            it = sch.find("pattern");
+            if (it != sch.object_range().end())
+            {
+                validators.emplace_back(make_pattern_keyword(context, it->value()));
+            }
+#endif
+
+            it = sch.find("format");
+            if (it != sch.object_range().end())
+            {
+                validators.emplace_back(make_format_keyword(context, it->value()));
+            }
+
+            return jsoncons::make_unique<string_keyword<Json>>(reference, std::move(validators));
+        }
+
+        std::unique_ptr<content_media_type_keyword<Json>> make_content_media_type_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("contentMediaType");
+            if (!sch.is_string())
+            {
+                std::string message("contentMediaType must be a string");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<std::string>();
+            return jsoncons::make_unique<content_media_type_keyword<Json>>(reference, value);
+        }
+
+        std::unique_ptr<format_keyword<Json>> make_format_keyword(const compilation_context& context, const Json& sch)
+        {
+            auto reference = context.make_schema_path_with("format");
+
+            std::string format = sch.template as<std::string>();
+
+            format_checker format_check;
+            if (format == "date-time")
+            {
+                format_check = rfc3339_date_time_check;
+            }
+            else if (format == "date") 
+            {
+                format_check = rfc3339_date_check;
+            } 
+            else if (format == "time") 
+            {
+                format_check = rfc3339_time_check;
+            } 
+            else if (format == "email") 
+            {
+                format_check = email_check;
+            } 
+            else if (format == "hostname") 
+            {
+                format_check = hostname_check;
+            } 
+            else if (format == "ipv4") 
+            {
+                format_check = ipv4_check;
+            } 
+            else if (format == "ipv6") 
+            {
+                format_check = ipv6_check;
+            } 
+            else if (format == "regex") 
+            {
+                format_check = regex_check;
+            } 
+            else
+            {
+                // Not supported - ignore
+                format_check = nullptr;
+            }       
+
+            return jsoncons::make_unique<format_keyword<Json>>(reference, 
+                format_check);
+        }
+
+        std::unique_ptr<pattern_keyword<Json>> make_pattern_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("pattern");
+            auto pattern_string = sch.template as<std::string>();
+            auto regex = std::regex(pattern_string, std::regex::ECMAScript);
+            return jsoncons::make_unique<pattern_keyword<Json>>(reference, 
+                pattern_string, regex);
+        }
+
+        std::unique_ptr<max_length_keyword<Json>> make_max_length_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("maxLength");
+            if (!sch.is_number())
+            {
+                std::string message("maxLength must be a number value");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<std::size_t>();
+            return jsoncons::make_unique<max_length_keyword<Json>>(reference, value);
+        }
+
+        std::unique_ptr<max_items_keyword<Json>> make_max_items_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("maxItems");
+            if (!sch.is_number())
+            {
+                std::string message("maxItems must be a number value");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<std::size_t>();
+            return jsoncons::make_unique<max_items_keyword<Json>>(reference, value);
+        }
+
+        std::unique_ptr<min_items_keyword<Json>> make_min_items_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("minItems");
+            if (!sch.is_number())
+            {
+                std::string message("minItems must be a number value");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<std::size_t>();
+            return jsoncons::make_unique<min_items_keyword<Json>>(reference, value);
+        }
+
+        std::unique_ptr<array_keyword<Json>> make_array_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.get_absolute_uri();
+
+            std::vector<keyword_keyword_type> validators;
+
+            auto it = sch.find("maxItems");
+            if (it != sch.object_range().end()) 
+            {
+                validators.emplace_back(make_max_items_keyword(context, it->value()));
+            }
+
+            it = sch.find("minItems");
+            if (it != sch.object_range().end()) 
+            {
+                validators.emplace_back(make_min_items_keyword(context, it->value()));
+            }
+
+            it = sch.find("uniqueItems");
+            if (it != sch.object_range().end()) 
+            {
+                validators.emplace_back(make_unique_items_keyword(context, it->value()));
+            }
+
+            it = sch.find("items");
+            if (it != sch.object_range().end()) 
+            {
+
+                if (it->value().type() == json_type::array_value) 
+                {
+                    validators.emplace_back(make_items_array_keyword(context, sch, it->value()));
+                } 
+                else if (it->value().type() == json_type::object_value ||
+                           it->value().type() == json_type::bool_value)
+                {
+                    validators.emplace_back(make_items_object_keyword(context, sch, it->value()));
+                }
+            }
+
+            it = sch.find("contains");
+            if (it != sch.object_range().end()) 
+            {
+                validators.emplace_back(make_contains_keyword(context, sch, it->value()));
+            }
+
+            return jsoncons::make_unique<array_keyword<Json>>(reference, std::move(validators));
+        }
+
+        std::unique_ptr<contains_keyword<Json>> make_contains_keyword(const compilation_context& context,
+            const Json& /*parent*/, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("contains");
+
+            std::string sub_keys[] = { "contains" };
+
+            return jsoncons::make_unique<contains_keyword<Json>>(reference, 
+                make_schema_keyword(context, sch, sub_keys));
+        }
+
+        std::unique_ptr<items_array_keyword<Json>> make_items_array_keyword(const compilation_context& context, 
+            const Json& parent, const Json& sch)
+        {
+            std::vector<schema_keyword_type> item_keywords;
+            schema_keyword_type additional_items_keyword = nullptr;
+
+            uri reference = context.make_schema_path_with("items");
+
+            if (sch.type() == json_type::array_value) 
+            {
+                size_t c = 0;
+                for (const auto& subsch : sch.array_range())
+                {
+                    std::string sub_keys[] = {"items", std::to_string(c++)};
+
+                    item_keywords.emplace_back(make_schema_keyword(context, subsch, sub_keys));
+                }
+
+                auto it = parent.find("additionalItems");
+                if (it != parent.object_range().end()) 
+                {
+                    std::string sub_keys[] = {"additionalItems"};
+                    additional_items_keyword = make_schema_keyword(context, it->value(), sub_keys);
+                }
+            }
+
+            return jsoncons::make_unique<items_array_keyword<Json>>(reference, 
+                std::move(item_keywords), std::move(additional_items_keyword));
+        }
+
+        std::unique_ptr<items_object_keyword<Json>> make_items_object_keyword(const compilation_context& context, 
+            const Json& /* parent */, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("items");
+
+            std::string sub_keys[] = {"items"};
+
+            return jsoncons::make_unique<items_object_keyword<Json>>(reference, 
+                make_schema_keyword(context, sch, sub_keys));
+        }
+
+        std::unique_ptr<unique_items_keyword<Json>> make_unique_items_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("uniqueItems");
+            bool are_unique = sch.template as<bool>();
+            return jsoncons::make_unique<unique_items_keyword<Json>>(reference, are_unique);
+        }
+
+        std::unique_ptr<min_length_keyword<Json>> make_min_length_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("minLength");
+            if (!sch.is_number())
+            {
+                std::string message("minLength must be an integer value");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<std::size_t>();
+            return jsoncons::make_unique<min_length_keyword<Json>>(reference, value);
+        }
+
+        std::unique_ptr<not_keyword<Json>> make_not_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("not");
+            std::string not_key[] = { "not" };
+            return jsoncons::make_unique<not_keyword<Json>>(reference, 
+                make_schema_keyword(context, sch, not_key));
+        }
+
+        std::unique_ptr<maximum_keyword<Json,int64_t>> make_maximum_integer_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("maximum");
+            if (!sch.is_number())
+            {
+                std::string message("maximum must be a number value");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<int64_t>();
+            return jsoncons::make_unique<maximum_keyword<Json,int64_t>>(reference, value);
+        }
+
+        std::unique_ptr<maximum_keyword<Json,double>> make_maximum_number_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("maximum");
+            if (!sch.is_number())
+            {
+                std::string message("maximum must be a number value");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<double>();
+            return jsoncons::make_unique<maximum_keyword<Json,double>>(reference, value);
+        }
+
+        std::unique_ptr<exclusive_maximum_keyword<Json,int64_t>> make_exclusive_maximum_integer_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("exclusiveMaximum");
+            if (!sch.is_number())
+            {
+                std::string message("exclusiveMaximum must be a number value");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<int64_t>();
+            return jsoncons::make_unique<exclusive_maximum_keyword<Json,int64_t>>(reference, value);
+        }
+
+        std::unique_ptr<exclusive_maximum_keyword<Json,double>> make_exclusive_maximum_number_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("exclusiveMaximum");
+            if (!sch.is_number())
+            {
+                std::string message("exclusiveMaximum must be a number value");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<double>();
+            return jsoncons::make_unique<exclusive_maximum_keyword<Json,double>>(reference, value);
+        }
+
+        std::unique_ptr<minimum_keyword<Json,int64_t>> make_minimum_integer_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("minimum");
+
+            //std::cout << "make_minimum_integer_keyword uri: " << context.get_absolute_uri().string() << ", " << reference.string() << "\n";
+                
+            if (!sch.is_number())
+            {
+                std::string message("minimum must be an integer");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<int64_t>();
+            return jsoncons::make_unique<minimum_keyword<Json,int64_t>>(reference, value);
+        }
+
+        std::unique_ptr<minimum_keyword<Json,double>> make_minimum_number_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("minimum");
+            if (!sch.is_number())
+            {
+                std::string message("minimum must be an number");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<double>();
+            return jsoncons::make_unique<minimum_keyword<Json,double>>(reference, value);
+        }
+
+        std::unique_ptr<exclusive_minimum_keyword<Json,int64_t>> make_exclusive_minimum_integer_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("exclusiveMinimum");
+            if (!sch.is_number())
+            {
+                std::string message("exclusiveMinimum must be a number value");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<int64_t>();
+            return jsoncons::make_unique<exclusive_minimum_keyword<Json,int64_t>>(reference, value);
+        }
+
+        std::unique_ptr<exclusive_minimum_keyword<Json,double>> make_exclusive_minimum_number_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("exclusiveMinimum");
+            if (!sch.is_number())
+            {
+                std::string message("exclusiveMinimum must be a number value");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<double>();
+            return jsoncons::make_unique<exclusive_minimum_keyword<Json,double>>(reference, value);
+        }
+
+        std::unique_ptr<multiple_of_keyword<Json>> make_multiple_of_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("multipleOf");
+            if (!sch.is_number())
+            {
+                std::string message("multipleOf must be a number value");
+                JSONCONS_THROW(schema_error(message));
+            }
+            auto value = sch.template as<double>();
+            return jsoncons::make_unique<multiple_of_keyword<Json>>(reference, value);
+        }
+
+        std::unique_ptr<integer_keyword<Json>> make_integer_keyword(const compilation_context& context, 
+            const Json& sch, std::set<std::string>& keywords) 
+        {
+            uri reference = context.get_absolute_uri();
+
+            std::vector<keyword_keyword_type> validators;
+
+            auto it = sch.find("maximum");
+            if (it != sch.object_range().end()) 
+            {
+                keywords.insert("maximum");
+                validators.emplace_back(make_maximum_integer_keyword(context, it->value()));
+            }
+
+            it = sch.find("minimum");
+            if (it != sch.object_range().end()) 
+            {
+                keywords.insert("minimum");
+                validators.emplace_back(make_minimum_integer_keyword(context, it->value()));
+            }
+
+            it = sch.find("exclusiveMaximum");
+            if (it != sch.object_range().end()) 
+            {
+                keywords.insert("exclusiveMaximum");
+                validators.emplace_back(make_exclusive_maximum_integer_keyword(context, it->value()));
+            }
+
+            it = sch.find("exclusiveMinimum");
+            if (it != sch.object_range().end()) 
+            {
+                keywords.insert("exclusiveMinimum");
+                validators.emplace_back(make_exclusive_minimum_integer_keyword(context, it->value()));
+            }
+
+            it = sch.find("multipleOf");
+            if (it != sch.object_range().end()) 
+            {
+                keywords.insert("multipleOf");
+                validators.emplace_back(make_multiple_of_keyword(context, it->value()));
+            }
+
+
+            return jsoncons::make_unique<integer_keyword<Json>>(reference, std::move(validators));
+        }
+
+        std::unique_ptr<number_keyword<Json>> make_number_keyword(const compilation_context& context, 
+            const Json& sch, std::set<std::string>& keywords)
+        {
+            uri reference = context.get_absolute_uri();
+
+            std::vector<keyword_keyword_type> validators;
+
+            auto it = sch.find("maximum");
+            if (it != sch.object_range().end()) 
+            {
+                keywords.insert("maximum");
+                validators.emplace_back(make_maximum_number_keyword(context, it->value()));
+            }
+
+            it = sch.find("minimum");
+            if (it != sch.object_range().end()) 
+            {
+                keywords.insert("minimum");
+                validators.emplace_back(make_minimum_number_keyword(context, it->value()));
+            }
+
+            it = sch.find("exclusiveMaximum");
+            if (it != sch.object_range().end()) 
+            {
+                keywords.insert("exclusiveMaximum");
+                validators.emplace_back(make_exclusive_maximum_number_keyword(context, it->value()));
+            }
+
+            it = sch.find("exclusiveMinimum");
+            if (it != sch.object_range().end()) 
+            {
+                keywords.insert("exclusiveMinimum");
+                validators.emplace_back(make_exclusive_minimum_number_keyword(context, it->value()));
+            }
+
+            it = sch.find("multipleOf");
+            if (it != sch.object_range().end()) 
+            {
+                keywords.insert("multipleOf");
+                validators.emplace_back(make_multiple_of_keyword(context, it->value()));
+            }
+
+
+            return jsoncons::make_unique<number_keyword<Json>>(reference, std::move(validators));
+        }
+
+        std::unique_ptr<null_keyword<Json>> make_null_keyword(const compilation_context& context)
+        {
+            uri reference = context.make_schema_path_with("null");
+            return jsoncons::make_unique<null_keyword<Json>>(reference);
+        }
+
+        std::unique_ptr<boolean_keyword<Json>> make_boolean_keyword(const compilation_context& context)
+        {
+            uri reference = context.get_absolute_uri();
+            return jsoncons::make_unique<boolean_keyword<Json>>(reference);
+        }
+
+        std::unique_ptr<const_keyword<Json>> make_const_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("const");
+            return jsoncons::make_unique<const_keyword<Json>>(reference, sch);
+        }
+
+        std::unique_ptr<enum_keyword<Json>> make_enum_keyword(const compilation_context& context, const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("enum");
+            return jsoncons::make_unique<enum_keyword<Json>>(reference, sch);
+        }
+
+        std::unique_ptr<required_keyword<Json>> make_required_keyword(const compilation_context& context,
+            const std::vector<std::string>& items)
+        {
+            uri reference = context.make_schema_path_with("required");
+            return jsoncons::make_unique<required_keyword<Json>>(reference, items);
+        }
+
+
+        std::unique_ptr<conditional_keyword<Json>> make_conditional_keyword(const compilation_context& context,
+            const Json& sch_if, const Json& sch)
+        {
+            std::string reference = context.get_absolute_uri().string();
+            schema_keyword_type if_keyword(nullptr);
+            schema_keyword_type then_keyword(nullptr);
+            schema_keyword_type else_keyword(nullptr);
+
+            std::string if_key[] = { "if" };
+            if_keyword = make_schema_keyword(context, sch_if, if_key);
+
+            auto then_it = sch.find("then");
+            if (then_it != sch.object_range().end()) 
+            {
+                std::string then_key[] = { "then" };
+                then_keyword = make_schema_keyword(context, then_it->value(), then_key);
+            }
+
+            auto else_it = sch.find("else");
+            if (else_it != sch.object_range().end()) 
+            {
+                std::string else_key[] = { "else" };
+                else_keyword = make_schema_keyword(context, else_it->value(), else_key);
+            }
+
+            return jsoncons::make_unique<conditional_keyword<Json>>(std::move(reference),
+                std::move(if_keyword), std::move(then_keyword), std::move(else_keyword));
+        }
+
+        std::unique_ptr<combining_keyword<Json,all_of_criterion<Json>>> make_all_of_keyword(const compilation_context& context,
+            const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("allOf");
+            std::vector<schema_keyword_type> subschemas;
+
+            size_t c = 0;
+            for (const auto& subsch : sch.array_range())
+            {
+                std::string sub_keys[] = { all_of_criterion<Json>::key(), std::to_string(c++) };
+                subschemas.emplace_back(make_schema_keyword(context, subsch, sub_keys));
+            }
+            return jsoncons::make_unique<combining_keyword<Json,all_of_criterion<Json>>>(std::move(reference), std::move(subschemas));
+        }
+
+        std::unique_ptr<combining_keyword<Json,any_of_criterion<Json>>> make_any_of_keyword(const compilation_context& context,
+            const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("anyOf");
+            std::vector<schema_keyword_type> subschemas;
+
+            size_t c = 0;
+            for (const auto& subsch : sch.array_range())
+            {
+                std::string sub_keys[] = { any_of_criterion<Json>::key(), std::to_string(c++) };
+                subschemas.emplace_back(make_schema_keyword(context, subsch, sub_keys));
+            }
+            return jsoncons::make_unique<combining_keyword<Json,any_of_criterion<Json>>>(std::move(reference), std::move(subschemas));
+        }
+
+        std::unique_ptr<combining_keyword<Json,one_of_criterion<Json>>> make_one_of_keyword(const compilation_context& context,
+            const Json& sch)
+        {
+            uri reference = context.make_schema_path_with("oneOf");
+            std::vector<schema_keyword_type> subschemas;
+
+            size_t c = 0;
+            for (const auto& subsch : sch.array_range())
+            {
+                std::string sub_keys[] = { one_of_criterion<Json>::key(), std::to_string(c++) };
+                subschemas.emplace_back(make_schema_keyword(context, subsch, sub_keys));
+            }
+            return jsoncons::make_unique<combining_keyword<Json,one_of_criterion<Json>>>(std::move(reference), std::move(subschemas));
+        }
+
+        std::unique_ptr<object_keyword<Json>> make_object_keyword(const compilation_context& context, 
+            const Json& sch)
+        {
+            uri reference = context.get_absolute_uri();
+            std::vector<keyword_keyword_type> general_keywords;
+            std::map<std::string, schema_keyword_type> properties;
+        #if defined(JSONCONS_HAS_STD_REGEX)
+            std::vector<std::pair<std::regex, schema_keyword_type>> pattern_properties;
+        #endif
+            schema_keyword_type additional_properties;
+            std::map<std::string, keyword_keyword_type> dependent_required;
+            std::map<std::string, schema_keyword_type> dependent_schemas;
+            schema_keyword_type property_name_keyword;
+
+            auto it = sch.find("maxProperties");
+            if (it != sch.object_range().end()) 
+            {
+                auto max_properties = it->value().template as<std::size_t>();
+                general_keywords.emplace_back(jsoncons::make_unique<max_properties_keyword<Json>>(context.make_schema_path_with("maxProperties"), max_properties));
+            }
+
+            it = sch.find("minProperties");
+            if (it != sch.object_range().end()) 
+            {
+                auto min_properties = it->value().template as<std::size_t>();
+                general_keywords.emplace_back(jsoncons::make_unique<min_properties_keyword<Json>>(context.make_schema_path_with("minProperties"), min_properties));
+            }
+
+            it = sch.find("required");
+            if (it != sch.object_range().end()) 
+            {
+                general_keywords.emplace_back(jsoncons::make_unique<required_keyword<Json>>(context.make_schema_path_with("required"), 
+                    it->value().template as<std::vector<std::string>>()));
+            }
+
+            it = sch.find("properties");
+            if (it != sch.object_range().end()) 
+            {
+                for (const auto& prop : it->value().object_range())
+                {
+                    std::string sub_keys[] = {"properties", prop.key()};
+                    properties.emplace(
+                        std::make_pair(
+                            prop.key(),
+                            make_schema_keyword(context, prop.value(), sub_keys)));
+                }
+            }
+
+    #if defined(JSONCONS_HAS_STD_REGEX)
+            it = sch.find("patternProperties");
+            if (it != sch.object_range().end()) 
+            {
+                for (const auto& prop : it->value().object_range())
+                {
+                    std::string sub_keys[] = {prop.key()};
+                    pattern_properties.emplace_back(
+                        std::make_pair(
+                            std::regex(prop.key(), std::regex::ECMAScript),
+                            make_schema_keyword(context, prop.value(), sub_keys)));
+                }
+            }
+    #endif
+
+            it = sch.find("additionalProperties");
+            if (it != sch.object_range().end()) 
+            {
+                std::string sub_keys[] = {"additionalProperties"};
+                additional_properties = make_schema_keyword(context, it->value(), sub_keys);
+            }
+
+            it = sch.find("dependencies");
+            if (it != sch.object_range().end()) 
+            {
+                for (const auto& dep : it->value().object_range())
+                {
+                    switch (dep.value().type()) 
+                    {
+                        case json_type::array_value:
+                        {
+                            auto location = context.make_schema_path_with("dependencies");
+                            dependent_required.emplace(dep.key(), 
+                                make_required_keyword(compilation_context(nullptr, std::vector<schema_location>{{location}}),
+                                    dep.value().template as<std::vector<std::string>>()));
+                            break;
+                        }
+                        case json_type::object_value:
+                        {
+                            std::string sub_keys[] = {"dependencies"};
+                            dependent_schemas.emplace(dep.key(),
+                                make_schema_keyword(context, dep.value(), sub_keys));
+                            break;
+                        }
+                        default:
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            auto property_names_it = sch.find("propertyNames");
+            if (property_names_it != sch.object_range().end()) 
+            {
+                std::string sub_keys[] = {"propertyNames"};
+                property_name_keyword = make_schema_keyword(context, property_names_it->value(), sub_keys);
+            }
+
+            return jsoncons::make_unique<object_keyword<Json>>(std::move(reference),
+                std::move(general_keywords),
+                std::move(properties),
+#if defined(JSONCONS_HAS_STD_REGEX)
+                std::move(pattern_properties),
+#endif
+                std::move(additional_properties),
+                std::move(dependent_required),
+                std::move(dependent_schemas),
+                std::move(property_name_keyword)
+     );
         }
 
     };
