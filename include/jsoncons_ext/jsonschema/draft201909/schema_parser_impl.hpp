@@ -53,6 +53,7 @@ namespace draft201909 {
         using validator_type = std::unique_ptr<validator_base<Json>>;
         using keyword_validator_wrapper_type = keyword_validator_wrapper<Json>;
         using keyword_validator_type = typename std::unique_ptr<keyword_validator<Json>>;
+        using schema_keyword_type = typename std::unique_ptr<schema_keyword<Json>>;
         using schema_validator_pointer = schema_validator<Json>*;
         using schema_validator_type = typename std::unique_ptr<schema_validator<Json>>;
         using ref_validator_type = ref_validator<Json>;
@@ -134,7 +135,6 @@ namespace draft201909 {
             Json default_value{jsoncons::null_type()};
             schema_validator_type schema_validator_ptr;
 
-            std::vector<keyword_validator_type> validators; 
             switch (sch.type())
             {
                 case json_type::bool_value:
@@ -158,18 +158,24 @@ namespace draft201909 {
                 }
                 case json_type::object_value:
                 {
+                    std::set<std::string> known_keywords;
+                    std::vector<schema_keyword_type> keywords = make_keywords(new_context, sch, keys, known_keywords); 
+                    std::vector<keyword_validator_type> validators; 
+
                     bool is_recursive_anchor = false;
 
                     auto it = sch.find("$recursiveAnchor"); 
                     if (it != sch.object_range().end()) 
                     {
                         is_recursive_anchor = it->value().template as<bool>();
+                        known_keywords.insert("$recursiveAnchor");
                     }
 
                     it = sch.find("default");
                     if (it != sch.object_range().end()) 
                     {
                         default_value = it->value();
+                        known_keywords.insert("default");
                     }
 
                     it = sch.find("$defs");
@@ -184,6 +190,7 @@ namespace draft201909 {
                             subschemas_.emplace_back(make_schema_validator(new_context, def.value(), sub_keys));
                             is_def.pop();
                         }
+                        known_keywords.insert("$defs");
                     }
                     it = sch.find("definitions");
                     if (it != sch.object_range().end()) 
@@ -193,13 +200,16 @@ namespace draft201909 {
                             std::string sub_keys[] = { "definitions", def.key() };
                             subschemas_.emplace_back(make_schema_validator(new_context, def.value(), sub_keys));
                         }
+                        known_keywords.insert("definitions");
                     }
+
                     it = sch.find("$ref");
                     if (it != sch.object_range().end()) // this schema has a reference
                     {
                         schema_location relative(it->value().template as<std::string>()); 
                         auto id = relative.resolve(new_context.get_base_uri()); 
                         validators.push_back(get_or_create_reference(id));
+                        known_keywords.insert("$ref");
                     }
 
                     it = sch.find("$recursiveRef");
@@ -209,45 +219,51 @@ namespace draft201909 {
                         auto base_uri = new_context.get_base_uri(uri_anchor_flags::recursive_anchor);
                         auto id = relative.resolve(base_uri); // REVISIT
                         validators.push_back(jsoncons::make_unique<recursive_ref_validator_type>(id.base()));
+                        known_keywords.insert("$recursiveRef");
                     }
 
-                    validators.push_back(make_type_validator(new_context, sch));
-
+                    validators.push_back(make_type_validator(new_context, sch, known_keywords));
 
                     it = sch.find("enum");
                     if (it != sch.object_range().end()) 
                     {
                         validators.push_back(make_enum_validator(new_context, it->value()));
+                        known_keywords.insert("enum");
                     }
 
                     it = sch.find("const");
                     if (it != sch.object_range().end()) 
                     {
                         validators.push_back(make_const_validator(new_context, it->value()));
+                        known_keywords.insert("const");
                     }
 
                     it = sch.find("not");
                     if (it != sch.object_range().end()) 
                     {
                         validators.push_back(make_not_validator(new_context, it->value()));
+                        known_keywords.insert("not");
                     }
 
                     it = sch.find("allOf");
                     if (it != sch.object_range().end()) 
                     {
                         validators.push_back(make_all_of_validator(new_context, it->value()));
+                        known_keywords.insert("allOf");
                     }
 
                     it = sch.find("anyOf");
                     if (it != sch.object_range().end()) 
                     {
                         validators.push_back(make_any_of_validator(new_context, it->value()));
+                        known_keywords.insert("anyOf");
                     }
 
                     it = sch.find("oneOf");
                     if (it != sch.object_range().end()) 
                     {
                         validators.push_back(make_one_of_validator(new_context, it->value()));
+                        known_keywords.insert("oneOf");
                     }
 
                     it = sch.find("if");
@@ -255,6 +271,7 @@ namespace draft201909 {
                     {
                         validators.push_back(make_conditional_validator(new_context, it->value(), sch));
                         // sch["if"] is object and has id, can be looked up
+                        known_keywords.insert("if");
                     }
                     else
                     {
@@ -263,6 +280,7 @@ namespace draft201909 {
                         {
                             std::string sub_keys[] = { "then" };
                             subschemas_.emplace_back(make_schema_validator(new_context, then_it->value(), sub_keys));
+                            known_keywords.insert("then");
                         }
 
                         auto else_it = sch.find("else");
@@ -270,6 +288,7 @@ namespace draft201909 {
                         {
                             std::string sub_keys[] = { "else" };
                             subschemas_.emplace_back(make_schema_validator(new_context, else_it->value(), sub_keys));
+                            known_keywords.insert("else");
                         }
                     }
 
@@ -384,12 +403,11 @@ namespace draft201909 {
         }
 
         std::unique_ptr<type_validator<Json>> make_type_validator(const compilation_context& context,
-            const Json& sch)
+            const Json& sch, std::set<std::string>& known_keywords)
         {
             uri reference = context.get_absolute_uri();
 
             std::vector<keyword_validator_type> type_mapping{(uint8_t)(json_type::object_value)+1};
-            std::set<std::string> known_keywords;
             std::vector<std::string> expected_types;
 
             auto it = sch.find("type");
@@ -1448,6 +1466,15 @@ namespace draft201909 {
             }*/
 
             return compilation_context(std::addressof(parent), new_uris, flags);
+        }
+
+        // keywords
+
+        std::vector<schema_keyword_type> make_keywords(const compilation_context& /*context*/,
+            const Json& /*sch*/, jsoncons::span<const std::string> /*keys*/, std::set<std::string>& known_keywords)
+        {
+            std::vector<schema_keyword_type> keywords;
+            return keywords;
         }
 
     };

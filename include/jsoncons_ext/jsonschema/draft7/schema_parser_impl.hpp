@@ -49,6 +49,7 @@ namespace draft7 {
         using validator_type = std::unique_ptr<validator_base<Json>>;
         using keyword_validator_wrapper_type = keyword_validator_wrapper<Json>;
         using keyword_validator_type = typename std::unique_ptr<keyword_validator<Json>>;
+        using schema_keyword_type = typename std::unique_ptr<schema_keyword<Json>>;
         using schema_validator_pointer = schema_validator<Json>*;
         using schema_validator_type = typename std::unique_ptr<schema_validator<Json>>;
         using ref_validator_type = ref_validator<Json>;
@@ -103,7 +104,6 @@ namespace draft7 {
 
             bool is_ref = false;
 
-            std::vector<keyword_validator_type> validators; 
             switch (sch.type())
             {
                 case json_type::bool_value:
@@ -127,6 +127,7 @@ namespace draft7 {
                 case json_type::object_value:
                 {
                     std::set<std::string> known_keywords;
+                    std::vector<keyword_validator_type> validators; 
 
                     auto it = sch.find("default");
                     if (it != sch.object_range().end()) 
@@ -134,6 +135,7 @@ namespace draft7 {
                         default_value = it->value();
                         known_keywords.insert("default");
                     }
+                    // Keep this
                     it = sch.find("$ref");
                     if (it != sch.object_range().end()) // this schema is a reference
                     {
@@ -153,6 +155,10 @@ namespace draft7 {
                         }
                         known_keywords.insert("definitions");
                     }
+
+                    std::vector<schema_keyword_type> keywords = is_ref ? std::vector<schema_keyword_type>{} 
+                        : make_keywords(new_context, sch, keys, known_keywords); 
+
                     if (!is_ref)
                     {
                         validators.push_back(make_type_validator(new_context, sch, known_keywords));
@@ -1314,6 +1320,188 @@ namespace draft7 {
             }
 
             return compilation_context(std::addressof(parent), new_uris);
+        }
+
+        // keywords
+
+        std::vector<schema_keyword_type> make_keywords(const compilation_context& context,
+            const Json& sch, jsoncons::span<const std::string> keys, std::set<std::string>& known_keywords)
+        {
+            std::vector<schema_keyword_type> keywords;
+
+            /*validators.push_back(make_type_validator(context, sch, known_keywords));
+
+            it = sch.find("enum");
+            if (it != sch.object_range().end()) 
+            {
+                validators.push_back(make_enum_validator(context, it->value()));
+                known_keywords.insert("enum");
+            }
+
+            it = sch.find("const");
+            if (it != sch.object_range().end()) 
+            {
+                validators.push_back(make_const_validator(context, it->value()));
+                known_keywords.insert("const");
+            }
+
+            it = sch.find("not");
+            if (it != sch.object_range().end()) 
+            {
+                validators.push_back(make_not_validator(context, it->value()));
+                known_keywords.insert("not");
+            }
+
+            it = sch.find("allOf");
+            if (it != sch.object_range().end()) 
+            {
+                validators.push_back(make_all_of_validator(context, it->value()));
+                known_keywords.insert("allOf");
+            }
+
+            it = sch.find("anyOf");
+            if (it != sch.object_range().end()) 
+            {
+                validators.push_back(make_any_of_validator(context, it->value()));
+                known_keywords.insert("anyOf");
+            }
+
+            it = sch.find("oneOf");
+            if (it != sch.object_range().end()) 
+            {
+                validators.push_back(make_one_of_validator(context, it->value()));
+                known_keywords.insert("oneOf");
+            }
+
+            it = sch.find("if");
+            if (it != sch.object_range().end()) 
+            {
+                validators.push_back(make_conditional_validator(context, it->value(), sch));
+                known_keywords.insert("if");
+                // sch["if"] is object and has id, can be looked up
+            }
+            else
+            {
+                auto then_it = sch.find("then");
+                if (then_it != sch.object_range().end()) 
+                {
+                    std::string sub_keys[] = { "then" };
+                    subschemas_.emplace_back(make_schema_validator(context, then_it->value(), sub_keys));
+                    known_keywords.insert("then");
+                }
+
+                auto else_it = sch.find("else");
+                if (else_it != sch.object_range().end()) 
+                {
+                    std::string sub_keys[] = { "else" };
+                    subschemas_.emplace_back(make_schema_validator(context, else_it->value(), sub_keys));
+                    known_keywords.insert("else");
+                }
+            }*/        
+
+            return keywords;
+        }
+
+        void init_type_mapping(std::vector<schema_keyword_type>& type_mapping, const std::string& type,
+            const Json& sch,
+            const compilation_context& context,
+            std::set<std::string>& keywords)
+        {
+            if (type == "null")
+            {
+                //type_mapping[(uint8_t)json_type::null_value] = make_null_validator(context);
+            }
+            else if (type == "object")
+            {
+                //type_mapping[(uint8_t)json_type::object_value] = make_object_validator(context, sch);
+            }
+            else if (type == "array")
+            {
+                //type_mapping[(uint8_t)json_type::array_value] = make_array_validator(context, sch);
+            }
+            else if (type == "string")
+            {
+                //type_mapping[(uint8_t)json_type::string_value] = make_string_validator(context, sch);
+                // For binary types
+                //type_mapping[(uint8_t) json_type::byte_string_value] = make_string_validator(context, sch);
+            }
+            else if (type == "boolean")
+            {
+                //type_mapping[(uint8_t)json_type::bool_value] = make_boolean_validator(context);
+            }
+            else if (type == "integer")
+            {
+                //type_mapping[(uint8_t)json_type::int64_value] = make_integer_validator(context, sch, keywords);
+                //type_mapping[(uint8_t)json_type::uint64_value] = make_integer_validator(context, sch, keywords);
+                //type_mapping[(uint8_t)json_type::double_value] = make_integer_validator(context, sch, keywords);
+            }
+            else if (type == "number")
+            {
+                //type_mapping[(uint8_t)json_type::double_value] = make_number_validator(context, sch, keywords);
+                //type_mapping[(uint8_t)json_type::int64_value] =  make_number_validator(context, sch, keywords);
+                //type_mapping[(uint8_t)json_type::uint64_value] =  make_number_validator(context, sch, keywords);
+            }
+            else if (type.empty())
+            {
+                //type_mapping[(uint8_t)json_type::null_value] = make_null_validator(context);
+                //type_mapping[(uint8_t)json_type::object_value] = make_object_validator(context, sch);
+                //type_mapping[(uint8_t)json_type::array_value] = make_array_validator(context, sch);
+                //type_mapping[(uint8_t)json_type::string_value] = make_string_validator(context, sch);
+                // For binary types
+                //type_mapping[(uint8_t) json_type::byte_string_value] = make_string_validator(context, sch);
+                //type_mapping[(uint8_t)json_type::bool_value] = make_boolean_validator(context);
+                //type_mapping[(uint8_t)json_type::int64_value] = make_integer_validator(context, sch, keywords);
+                //type_mapping[(uint8_t)json_type::uint64_value] = make_integer_validator(context, sch, keywords);
+                //type_mapping[(uint8_t)json_type::double_value] = make_integer_validator(context, sch, keywords);
+                //type_mapping[(uint8_t)json_type::double_value] = make_number_validator(context, sch, keywords);
+                //type_mapping[(uint8_t)json_type::int64_value] = make_number_validator(context, sch, keywords);
+                //type_mapping[(uint8_t)json_type::uint64_value] = make_number_validator(context, sch, keywords);
+            }
+        }
+
+        std::unique_ptr<type_keyword<Json>> make_type_keyword(const compilation_context& context, 
+            const Json& sch, std::set<std::string>& known_keywords)
+        {
+            std::string reference = context.get_absolute_uri().string();
+            std::vector<std::string> expected_types;
+
+            std::vector<schema_keyword_type> type_mapping{(uint8_t)(json_type::object_value)+1};
+
+            auto it = sch.find("type");
+            if (it == sch.object_range().end()) 
+            {
+                init_type_mapping(type_mapping, "", sch, context, known_keywords);
+            }
+            else 
+            {
+                switch (it->value().type()) 
+                { 
+                    case json_type::string_value: 
+                    {
+                        auto type = it->value().template as<std::string>();
+                        init_type_mapping(type_mapping, type, sch, context, known_keywords);
+                        expected_types.emplace_back(std::move(type));
+                        break;
+                    } 
+
+                    case json_type::array_value: // "type": ["type1", "type2"]
+                    {
+                        for (const auto& item : it->value().array_range())
+                        {
+                            auto type = item.template as<std::string>();
+                            init_type_mapping(type_mapping, type, sch, context, known_keywords);
+                            expected_types.emplace_back(std::move(type));
+                        }
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            }
+
+            return jsoncons::make_unique<type_keyword<Json>>(std::move(reference), 
+                std::move(type_mapping), std::move(expected_types)
+         );
         }
 
     };
