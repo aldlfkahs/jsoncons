@@ -1520,23 +1520,23 @@ namespace draft7 {
         {
             uri reference = context.get_absolute_uri();
 
-            std::vector<keyword_keyword_type> validators;
+            std::vector<schema_keyword_type> keywords;
             auto it = sch.find("maxLength");
             if (it != sch.object_range().end())
             {
-                validators.emplace_back(make_max_length_keyword(context, it->value()));
+                keywords.emplace_back(make_max_length_keyword(context, it->value()));
             }
 
             it = sch.find("minLength");
             if (it != sch.object_range().end())
             {
-                validators.emplace_back(make_min_length_keyword(context, it->value()));
+                keywords.emplace_back(make_min_length_keyword(context, it->value()));
             }
 
             it = sch.find("contentEncoding");
             if (it != sch.object_range().end())
             {
-                validators.emplace_back(make_content_encoding_keyword(context, it->value()));
+                keywords.emplace_back(make_content_encoding_keyword(context, it->value()));
                 // If "contentEncoding" is set to "binary", a Json value
                 // of type json_type::byte_string_value is accepted.
             }
@@ -1544,24 +1544,24 @@ namespace draft7 {
             it = sch.find("contentMediaType");
             if (it != sch.object_range().end())
             {
-                validators.emplace_back(make_content_media_type_keyword(context, it->value()));
+                keywords.emplace_back(make_content_media_type_keyword(context, it->value()));
             }
 
 #if defined(JSONCONS_HAS_STD_REGEX)
             it = sch.find("pattern");
             if (it != sch.object_range().end())
             {
-                validators.emplace_back(make_pattern_keyword(context, it->value()));
+                keywords.emplace_back(make_pattern_keyword(context, it->value()));
             }
 #endif
 
             it = sch.find("format");
             if (it != sch.object_range().end())
             {
-                validators.emplace_back(make_format_keyword(context, it->value()));
+                keywords.emplace_back(make_format_keyword(context, it->value()));
             }
 
-            return jsoncons::make_unique<string_keyword<Json>>(reference, std::move(validators));
+            return jsoncons::make_unique<string_keyword<Json>>(reference, std::move(keywords));
         }
 
         std::unique_ptr<content_media_type_keyword<Json>> make_content_media_type_keyword(const compilation_context& context, const Json& sch)
@@ -1674,24 +1674,24 @@ namespace draft7 {
         {
             uri reference = context.get_absolute_uri();
 
-            std::vector<keyword_keyword_type> validators;
+            std::vector<schema_keyword_type> keywords;
 
             auto it = sch.find("maxItems");
             if (it != sch.object_range().end()) 
             {
-                validators.emplace_back(make_max_items_keyword(context, it->value()));
+                keywords.emplace_back(make_max_items_keyword(context, it->value()));
             }
 
             it = sch.find("minItems");
             if (it != sch.object_range().end()) 
             {
-                validators.emplace_back(make_min_items_keyword(context, it->value()));
+                keywords.emplace_back(make_min_items_keyword(context, it->value()));
             }
 
             it = sch.find("uniqueItems");
             if (it != sch.object_range().end()) 
             {
-                validators.emplace_back(make_unique_items_keyword(context, it->value()));
+                keywords.emplace_back(make_unique_items_keyword(context, it->value()));
             }
 
             it = sch.find("items");
@@ -1700,22 +1700,22 @@ namespace draft7 {
 
                 if (it->value().type() == json_type::array_value) 
                 {
-                    validators.emplace_back(make_items_array_keyword(context, sch, it->value()));
+                    keywords.emplace_back(make_items_array_keyword(context, sch, it->value()));
                 } 
                 else if (it->value().type() == json_type::object_value ||
                            it->value().type() == json_type::bool_value)
                 {
-                    validators.emplace_back(make_items_object_keyword(context, sch, it->value()));
+                    keywords.emplace_back(make_items_object_keyword(context, sch, it->value()));
                 }
             }
 
             it = sch.find("contains");
             if (it != sch.object_range().end()) 
             {
-                validators.emplace_back(make_contains_keyword(context, sch, it->value()));
+                keywords.emplace_back(make_contains_keyword(context, sch, it->value()));
             }
 
-            return jsoncons::make_unique<array_keyword<Json>>(reference, std::move(validators));
+            return jsoncons::make_unique<array_keyword<Json>>(reference, std::move(keywords));
         }
 
         std::unique_ptr<contains_keyword<Json>> make_contains_keyword(const compilation_context& context,
@@ -1913,45 +1913,45 @@ namespace draft7 {
         {
             uri reference = context.get_absolute_uri();
 
-            std::vector<keyword_keyword_type> validators;
+            std::vector<schema_keyword_type> keywords;
 
             auto it = sch.find("maximum");
             if (it != sch.object_range().end()) 
             {
                 keywords.insert("maximum");
-                validators.emplace_back(make_maximum_integer_keyword(context, it->value()));
+                keywords.emplace_back(make_maximum_integer_keyword(context, it->value()));
             }
 
             it = sch.find("minimum");
             if (it != sch.object_range().end()) 
             {
                 keywords.insert("minimum");
-                validators.emplace_back(make_minimum_integer_keyword(context, it->value()));
+                keywords.emplace_back(make_minimum_integer_keyword(context, it->value()));
             }
 
             it = sch.find("exclusiveMaximum");
             if (it != sch.object_range().end()) 
             {
                 keywords.insert("exclusiveMaximum");
-                validators.emplace_back(make_exclusive_maximum_integer_keyword(context, it->value()));
+                keywords.emplace_back(make_exclusive_maximum_integer_keyword(context, it->value()));
             }
 
             it = sch.find("exclusiveMinimum");
             if (it != sch.object_range().end()) 
             {
                 keywords.insert("exclusiveMinimum");
-                validators.emplace_back(make_exclusive_minimum_integer_keyword(context, it->value()));
+                keywords.emplace_back(make_exclusive_minimum_integer_keyword(context, it->value()));
             }
 
             it = sch.find("multipleOf");
             if (it != sch.object_range().end()) 
             {
                 keywords.insert("multipleOf");
-                validators.emplace_back(make_multiple_of_keyword(context, it->value()));
+                keywords.emplace_back(make_multiple_of_keyword(context, it->value()));
             }
 
 
-            return jsoncons::make_unique<integer_keyword<Json>>(reference, std::move(validators));
+            return jsoncons::make_unique<integer_keyword<Json>>(reference, std::move(keywords));
         }
 
         std::unique_ptr<number_keyword<Json>> make_number_keyword(const compilation_context& context, 
@@ -1959,45 +1959,45 @@ namespace draft7 {
         {
             uri reference = context.get_absolute_uri();
 
-            std::vector<keyword_keyword_type> validators;
+            std::vector<schema_keyword_type> keywords;
 
             auto it = sch.find("maximum");
             if (it != sch.object_range().end()) 
             {
                 keywords.insert("maximum");
-                validators.emplace_back(make_maximum_number_keyword(context, it->value()));
+                keywords.emplace_back(make_maximum_number_keyword(context, it->value()));
             }
 
             it = sch.find("minimum");
             if (it != sch.object_range().end()) 
             {
                 keywords.insert("minimum");
-                validators.emplace_back(make_minimum_number_keyword(context, it->value()));
+                keywords.emplace_back(make_minimum_number_keyword(context, it->value()));
             }
 
             it = sch.find("exclusiveMaximum");
             if (it != sch.object_range().end()) 
             {
                 keywords.insert("exclusiveMaximum");
-                validators.emplace_back(make_exclusive_maximum_number_keyword(context, it->value()));
+                keywords.emplace_back(make_exclusive_maximum_number_keyword(context, it->value()));
             }
 
             it = sch.find("exclusiveMinimum");
             if (it != sch.object_range().end()) 
             {
                 keywords.insert("exclusiveMinimum");
-                validators.emplace_back(make_exclusive_minimum_number_keyword(context, it->value()));
+                keywords.emplace_back(make_exclusive_minimum_number_keyword(context, it->value()));
             }
 
             it = sch.find("multipleOf");
             if (it != sch.object_range().end()) 
             {
                 keywords.insert("multipleOf");
-                validators.emplace_back(make_multiple_of_keyword(context, it->value()));
+                keywords.emplace_back(make_multiple_of_keyword(context, it->value()));
             }
 
 
-            return jsoncons::make_unique<number_keyword<Json>>(reference, std::move(validators));
+            return jsoncons::make_unique<number_keyword<Json>>(reference, std::move(keywords));
         }
 
         std::unique_ptr<null_keyword<Json>> make_null_keyword(const compilation_context& context)
@@ -2110,13 +2110,13 @@ namespace draft7 {
             const Json& sch)
         {
             uri reference = context.get_absolute_uri();
-            std::vector<keyword_keyword_type> general_keywords;
+            std::vector<schema_keyword_type> general_keywords;
             std::map<std::string, schema_keyword_type> properties;
         #if defined(JSONCONS_HAS_STD_REGEX)
             std::vector<std::pair<std::regex, schema_keyword_type>> pattern_properties;
         #endif
             schema_keyword_type additional_properties;
-            std::map<std::string, keyword_keyword_type> dependent_required;
+            std::map<std::string, schema_keyword_type> dependent_required;
             std::map<std::string, schema_keyword_type> dependent_schemas;
             schema_keyword_type property_name_keyword;
 
