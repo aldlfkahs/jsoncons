@@ -8,7 +8,7 @@
 #define JSONCONS_JSONSCHEMA_SCHEMA_FACTORY_HPP
 
 #include <jsoncons_ext/jsonschema/draft7/schema_parser_impl.hpp>
-#include <jsoncons_ext/jsonschema/draft201909/schema_parser_impl.hpp>
+//#include <jsoncons_ext/jsonschema/draft201909/schema_parser_impl.hpp>
 
 namespace jsoncons {
 namespace jsonschema {
@@ -23,11 +23,11 @@ namespace jsonschema {
             auto it = sch.find("$schema");
             if (it != sch.object_range().end())
             { 
-                if (it->value() == "https://json-schema.org/draft/2019-09/schema")
-                {
-                    parser_ptr = jsoncons::make_unique<jsoncons::jsonschema::draft201909::schema_parser_impl<Json>>(std::forward<Args>(args)...);
-                }
-                else
+                //if (it->value() == "https://json-schema.org/draft/2019-09/schema")
+                //{
+                //    parser_ptr = jsoncons::make_unique<jsoncons::jsonschema::draft201909::schema_parser_impl<Json>>(std::forward<Args>(args)...);
+                //}
+                //else
                 {
                     parser_ptr = jsoncons::make_unique<jsoncons::jsonschema::draft7::schema_parser_impl<Json>>(std::forward<Args>(args)...);
                 }

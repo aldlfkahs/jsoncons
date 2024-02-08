@@ -53,16 +53,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<content_encoding_validator>(this->reference().resolve(base_uri), content_encoding_);
-        }
-
     private:
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/) override 
-        {
-        }
-
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>&, 
@@ -116,16 +107,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<content_media_type_validator>(this->reference().resolve(base_uri), content_media_type_);
-        }
-
     private:
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
-
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>&, 
@@ -166,16 +148,7 @@ namespace jsonschema {
 
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<format_validator>(this->reference().resolve(base_uri), format_check_);
-        }
-
     private:
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
-
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>&, 
@@ -214,16 +187,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<pattern_validator>(this->reference().resolve(base_uri), pattern_string_, regex_);
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -262,15 +226,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<pattern_validator>(this->reference().resolve(base_uri));
-        }
-
     private:
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
 
         void do_validate(const Json&, 
             const jsonpointer::json_pointer&,
@@ -296,16 +252,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<max_length_validator>(this->reference().resolve(base_uri), max_length_);
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -344,16 +291,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<max_items_validator>(this->reference().resolve(base_uri), max_items_);
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -391,16 +329,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<min_items_validator>(this->reference().resolve(base_uri), min_items_);
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -444,37 +373,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            std::vector<schema_validator_type> item_validators;
-            for (auto& validator : item_validators_)
-            {
-                item_validators.push_back(validator->make_validator(base_uri));
-            }
-            schema_validator_type additional_items_validator; 
-            
-            if (additional_items_validator_)
-            {
-                additional_items_validator = additional_items_validator_->make_validator(base_uri);
-            }
-
-            return jsoncons::make_unique<items_array_validator>(this->reference().resolve(base_uri), std::move(item_validators),
-                std::move(additional_items_validator));
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override 
-        {
-            for (auto& validator : item_validators_)
-            {
-                validator->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-            if (additional_items_validator_)
-            {
-                additional_items_validator_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -524,27 +423,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            schema_validator_type validator;
-            if (validator_)
-            {
-                validator = validator_->make_validator(base_uri);
-            }
-
-            return jsoncons::make_unique<contains_validator>(this->reference().resolve(base_uri),
-                std::move(validator));
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override 
-        {
-            if (validator_)
-            {
-                validator_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -598,26 +477,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            schema_validator_type items_validator;
-            if (items_validator_)
-            {
-                items_validator = items_validator_->make_validator(base_uri);
-            }
-            return jsoncons::make_unique<items_object_validator>(this->reference().resolve(base_uri),
-                std::move(items_validator));
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override 
-        {
-            if (items_validator_)
-            {
-                items_validator_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -653,17 +513,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<unique_items_validator>(this->reference().resolve(base_uri),
-                are_unique_);
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -715,17 +565,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<min_length_validator>(this->reference().resolve(base_uri),
-                min_length_);
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -765,27 +605,8 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            std::vector<keyword_validator_type> validators;
-            for (auto& validator : validators_)
-            {
-                validators.emplace_back(validator->make_validator(base_uri));
-            }
-
-            return jsoncons::make_unique<string_validator>(this->reference().resolve(base_uri),
-                std::move(validators));
-        }
-
     private:
 
-        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override 
-        {
-            for (auto& validator : validators_)
-            {
-                validator->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-        }
         void do_validate(const Json& instance,
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>& evaluated_properties,
@@ -821,27 +642,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            schema_validator_type rule;
-            if (rule_)
-            {
-                rule = rule_->make_validator(base_uri);
-            }
-
-            return jsoncons::make_unique<not_validator>(this->reference().resolve(base_uri),
-                std::move(rule));
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override 
-        {
-            if (rule_)
-            {
-                rule_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -951,27 +752,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            std::vector<schema_validator_type> validators;
-            for (auto& validator : validators_)
-            {
-                validators.emplace_back(validator->make_validator(base_uri));
-            }
-
-            return jsoncons::make_unique<combining_validator>(this->reference().resolve(base_uri),
-                std::move(validators));
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override 
-        {
-            for (auto& validator : validators_)
-            {
-                validator->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -979,7 +760,7 @@ namespace jsonschema {
             error_reporter& reporter, 
             Json& patch) const final
         {
-            std::cout << "combining_validator.do_validate " << "keywordLocation: << " << this->reference().string() << ", instanceLocation:" << instance_location.to_string() << "\n";
+            //std::cout << "combining_validator.do_validate " << "keywordLocation: << " << this->reference().string() << ", instanceLocation:" << instance_location.to_string() << "\n";
 
             size_t count = 0;
 
@@ -1023,17 +804,8 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<maximum_validator>(this->reference().resolve(base_uri),
-                value_);
-        }
-
     private:
 
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override
-        {
-        }
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>&, 
@@ -1064,17 +836,8 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<exclusive_maximum_validator>(this->reference().resolve(base_uri),
-                value_);
-        }
-
     private:
 
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>&, 
@@ -1105,19 +868,8 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            //std::cout << "make_validator minimum " << this->reference().string() << ", base: " << base_uri.string() << ", resolve: " << this->reference().resolve(base_uri).string() << "\n\n"; 
-
-            return jsoncons::make_unique<minimum_validator>(this->reference().resolve(base_uri),
-                value_);
-        }
-
     private:
 
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>&, 
@@ -1148,17 +900,8 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<exclusive_minimum_validator>(this->reference().resolve(base_uri),
-                value_);
-        }
-
     private:
 
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override
-        {
-        }
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>&, 
@@ -1189,17 +932,8 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<multiple_of_validator>(this->reference().resolve(base_uri),
-                value_);
-        }
-
     private:
 
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>&, 
@@ -1240,27 +974,8 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            std::vector<keyword_validator_type> validators;
-            for (auto& validator : validators_)
-            {
-                validators.emplace_back(validator->make_validator(base_uri));
-            }
-
-            return jsoncons::make_unique<integer_validator>(this->reference().resolve(base_uri),
-                std::move(validators));
-        }
-
     private:
 
-        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override 
-        {
-            for (auto& validator : validators_)
-            {
-                validator->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-        }
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>& evaluated_properties, 
@@ -1302,27 +1017,8 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            std::vector<keyword_validator_type> validators;
-            for (auto& validator : validators_)
-            {
-                validators.emplace_back(validator->make_validator(base_uri));
-            }
-
-            return jsoncons::make_unique<number_validator>(this->reference().resolve(base_uri),
-                std::move(validators));
-        }
-
     private:
 
-        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override 
-        {
-            for (auto& validator : validators_)
-            {
-                validator->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-        }
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>& evaluated_properties, 
@@ -1364,16 +1060,8 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<null_validator>(this->reference().resolve(base_uri));
-        }
-
     private:
 
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>&, 
@@ -1401,16 +1089,8 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<boolean_validator>(this->reference().resolve(base_uri));
-        }
-
     private:
 
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
         void do_validate(const Json&, 
             const jsonpointer::json_pointer&,
             std::unordered_set<std::string>&, 
@@ -1440,17 +1120,7 @@ namespace jsonschema {
         required_validator& operator=(const required_validator&) = delete;
         required_validator& operator=(required_validator&&) = default;
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<required_validator>(this->reference().resolve(base_uri),
-                items_);
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -1489,16 +1159,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<max_properties_validator>(this->reference().resolve(base_uri), max_properties_);
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -1536,16 +1197,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<min_properties_validator>(this->reference().resolve(base_uri), min_properties_);
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -1613,94 +1265,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            std::vector<keyword_validator_type> general_validators;
-            for (auto& validator : general_validators_)
-            {
-                general_validators.emplace_back(validator->make_validator(base_uri));
-            }
-
-            std::map<std::string, schema_validator_type> properties;
-            for (auto& item : properties_)
-            {
-                properties.emplace(item.first, item.second->make_validator(base_uri));
-            }
-
-
-        #if defined(JSONCONS_HAS_STD_REGEX)
-            std::vector<std::pair<std::regex, schema_validator_type>> pattern_properties;
-            for (auto& item : pattern_properties_)
-            {
-                pattern_properties.emplace_back(item.first, item.second->make_validator(base_uri));
-            }
-        #endif
-            schema_validator_type additional_properties;
-            if (additional_properties_)
-            {
-                additional_properties = additional_properties_->make_validator(base_uri);
-            }
-
-            std::map<std::string, keyword_validator_type> dependent_required;
-            for (auto& item : dependent_required_)
-            {
-                dependent_required.emplace(item.first, item.second->make_validator(base_uri));
-            }
-
-            std::map<std::string, schema_validator_type> dependent_schemas;
-            for (auto& item : dependent_schemas_)
-            {
-                dependent_schemas.emplace(item.first, item.second->make_validator(base_uri));
-            }
-
-            schema_validator_type property_name_validator;
-            if (property_name_validator_)
-            {
-                property_name_validator = property_name_validator_->make_validator(base_uri);
-            }
-
-            return jsoncons::make_unique<object_validator>(this->reference().resolve(base_uri),
-                std::move(general_validators), std::move(properties),
-        #if defined(JSONCONS_HAS_STD_REGEX)
-                std::move(pattern_properties),
-        #endif
-                std::move(additional_properties),
-                std::move(dependent_required),
-                std::move(dependent_schemas),
-                std::move(property_name_validator));
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override 
-        {
-            for (auto& validator : general_validators_)
-            {
-                validator->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-            for (auto& item : properties_)
-            {
-                item.second->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-    #if defined(JSONCONS_HAS_STD_REGEX)
-            for (auto& item : pattern_properties_)
-            {
-                item.second->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-    #endif
-            for (auto& item : dependent_required_)
-            {
-                item.second->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-            for (auto& item : dependent_schemas_)
-            {
-                item.second->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-            if (additional_properties_)
-                additional_properties_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            if (property_name_validator_)
-                property_name_validator_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -1872,26 +1437,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            schema_validator_type validator;
-            if (validator_)
-            {
-                validator = validator_->make_validator(base_uri);
-            }
-            return jsoncons::make_unique<unevaluated_properties_validator>(this->reference().resolve(base_uri),
-                std::move(validator));
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override 
-        {
-            if (validator_)
-            {
-                validator_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -1942,27 +1488,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            std::vector<keyword_validator_type> validators;
-            for (auto& validator : validators_)
-            {
-                validators.emplace_back(validator->make_validator(base_uri));
-            }
-
-            return jsoncons::make_unique<array_validator>(this->reference().resolve(base_uri),
-                std::move(validators));
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override 
-        {
-            for (auto& validator : validators_)
-            {
-                validator->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
@@ -2003,45 +1529,8 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            schema_validator_type if_validator;
-            if (if_validator_)
-            {
-                if_validator = if_validator_->make_validator(base_uri);
-            }
-            schema_validator_type then_validator;
-            if (then_validator_)
-            {
-                then_validator = then_validator_->make_validator(base_uri);
-            }
-            schema_validator_type else_validator;
-            if (else_validator_)
-            {
-                else_validator = else_validator_->make_validator(base_uri);
-            }
-
-            return jsoncons::make_unique<conditional_validator>(this->reference().resolve(base_uri), 
-                std::move(if_validator), std::move(then_validator), std::move(else_validator));
-        }
-
     private:
 
-        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override 
-        {
-            if (if_validator_)
-            {
-                if_validator_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-            if (then_validator_)
-            {
-                then_validator_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-            if (else_validator_)
-            {
-                else_validator_->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-            }
-        }
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>& evaluated_properties, 
@@ -2082,16 +1571,8 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<enum_validator>(this->reference().resolve(base_uri), Json(value_));
-        }
-
     private:
 
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>&, 
@@ -2137,16 +1618,8 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            return jsoncons::make_unique<const_validator>(this->reference().resolve(base_uri), Json(value_));
-        }
-
     private:
 
-        void do_resolve_recursive_refs(const uri& /*base*/, bool /*has_recursive_anchor*/, schema_registry<Json>& /*schemas*/)         override 
-        {
-        }
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,
             std::unordered_set<std::string>&, 
@@ -2185,38 +1658,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri) const final 
-        {
-            std::vector<keyword_validator_type> type_mapping;
-            for (auto& validator : type_mapping_)
-            {
-                if (validator)
-                {
-                    type_mapping.emplace_back(validator->make_validator(base_uri));
-                }
-                else
-                {
-                    type_mapping.emplace_back(keyword_validator_type{});
-                }
-            }
-
-            return jsoncons::make_unique<type_validator>(this->reference().resolve(base_uri),
-                std::move(type_mapping), 
-                std::vector<std::string>(expected_types_));
-        }
-
     private:
-
-        void do_resolve_recursive_refs(const uri& base, bool has_recursive_anchor, schema_registry<Json>& schemas) override 
-        {
-            for (auto& validator : type_mapping_)
-            {
-                if (validator)
-                {
-                    validator->resolve_recursive_refs(base, has_recursive_anchor, schemas);
-                }
-            }
-        }
 
         void do_validate(const Json& instance, 
             const jsonpointer::json_pointer& instance_location,

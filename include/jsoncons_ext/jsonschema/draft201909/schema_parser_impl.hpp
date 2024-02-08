@@ -53,7 +53,7 @@ namespace draft201909 {
         using validator_type = std::unique_ptr<validator_base<Json>>;
         using keyword_validator_wrapper_type = keyword_validator_wrapper<Json>;
         using keyword_validator_type = typename std::unique_ptr<keyword_validator<Json>>;
-        using schema_keyword_type = typename std::unique_ptr<schema_keyword<Json>>;
+        using keyword_type = typename std::unique_ptr<schema_keyword<Json>>;
         using schema_validator_pointer = schema_validator<Json>*;
         using schema_validator_type = typename std::unique_ptr<schema_validator<Json>>;
         using ref_validator_type = ref_validator<Json>;
@@ -159,7 +159,7 @@ namespace draft201909 {
                 case json_type::object_value:
                 {
                     std::set<std::string> known_keywords;
-                    std::vector<schema_keyword_type> keywords = make_keywords(new_context, sch, keys, known_keywords); 
+                    std::vector<keyword_type> keywords = make_keywords(new_context, sch, keys, known_keywords); 
                     std::vector<keyword_validator_type> validators; 
 
                     bool is_recursive_anchor = false;
@@ -1470,10 +1470,10 @@ namespace draft201909 {
 
         // keywords
 
-        std::vector<schema_keyword_type> make_keywords(const compilation_context& /*context*/,
+        std::vector<keyword_type> make_keywords(const compilation_context& /*context*/,
             const Json& /*sch*/, jsoncons::span<const std::string> /*keys*/, std::set<std::string>& known_keywords)
         {
-            std::vector<schema_keyword_type> keywords;
+            std::vector<keyword_type> keywords;
             return keywords;
         }
 

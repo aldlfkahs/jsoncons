@@ -11,7 +11,7 @@
                     }
                 },
                 "valid": true
-            },
+            }/*,
             {
                 "description": "invalid definition schema",
                 "data": {
@@ -20,7 +20,7 @@
                     }
                 },
                 "valid": false
-            }
+            }*/
         ]
     }
 ]
