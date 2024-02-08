@@ -38,6 +38,7 @@ namespace jsonschema {
 
         keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const override 
         {
+            std::cout << "ref_keyword::make_validator base_uri: " << base_uri.string() << ", reference: " << this->reference().string() << "\n";
             schema<Json>* referred_schema = schemas.get_schema(this->reference());
             if (referred_schema == nullptr)
             {
@@ -45,8 +46,9 @@ namespace jsonschema {
                 JSONCONS_THROW(schema_error(message));
 
             }
-            auto validator = referred_schema->make_validator(base_uri, schemas);
             auto abs = referred_schema->reference().resolve(base_uri);
+            auto validator = referred_schema->make_validator(abs, schemas);
+            std::cout << "ref_keyword::make_validator schema reference: " << validator->reference().string() << "\n\n";
 
             return jsoncons::make_unique<ref_validator<Json>>(abs, std::move(validator));
         }
@@ -135,7 +137,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<content_encoding_validator<Json>>(this->reference().resolve(base_uri), content_encoding_);
         }
@@ -162,7 +164,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<content_media_type_validator<Json>>(this->reference().resolve(base_uri), content_media_type_);
         }
@@ -189,7 +191,7 @@ namespace jsonschema {
 
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<format_validator<Json>>(this->reference().resolve(base_uri), format_check_);
         }
@@ -219,7 +221,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<pattern_validator<Json>>(this->reference().resolve(base_uri), pattern_string_, regex_);
         }
@@ -242,7 +244,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<pattern_validator<Json>>(this->reference().resolve(base_uri));
         }
@@ -268,7 +270,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<max_length_validator<Json>>(this->reference().resolve(base_uri), max_length_);
         }
@@ -294,7 +296,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<max_items_validator<Json>>(this->reference().resolve(base_uri), max_items_);
         }
@@ -320,7 +322,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<min_items_validator<Json>>(this->reference().resolve(base_uri), min_items_);
         }
@@ -480,7 +482,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<unique_items_validator<Json>>(this->reference().resolve(base_uri),
                 are_unique_);
@@ -508,7 +510,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<min_length_validator<Json>>(this->reference().resolve(base_uri),
                 min_length_);
@@ -656,7 +658,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<maximum_validator<Json,T>>(this->reference().resolve(base_uri),
                 value_);
@@ -682,7 +684,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<exclusive_maximum_validator<Json,T>>(this->reference().resolve(base_uri),
                 value_);
@@ -708,7 +710,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             //std::cout << "make_validator minimum " << this->reference().string() << ", base: " << base_uri.string() << ", resolve: " << this->reference().resolve(base_uri).string() << "\n\n"; 
 
@@ -736,7 +738,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<exclusive_minimum_validator<Json,T>>(this->reference().resolve(base_uri),
                 value_);
@@ -762,7 +764,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<multiple_of_validator<Json>>(this->reference().resolve(base_uri),
                 value_);
@@ -863,7 +865,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<null_validator<Json>>(this->reference().resolve(base_uri));
         }
@@ -887,7 +889,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<boolean_validator<Json>>(this->reference().resolve(base_uri));
         }
@@ -918,7 +920,7 @@ namespace jsonschema {
         required_keyword& operator=(const required_keyword&) = delete;
         required_keyword& operator=(required_keyword&&) = default;
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<required_validator<Json>>(this->reference().resolve(base_uri),
                 items_);
@@ -946,7 +948,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<max_properties_validator<Json>>(this->reference().resolve(base_uri), max_properties_);
         }
@@ -973,7 +975,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final 
         {
             return jsoncons::make_unique<min_properties_validator<Json>>(this->reference().resolve(base_uri), min_properties_);
         }
@@ -1281,7 +1283,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final
         {
             return jsoncons::make_unique<enum_validator<Json>>(this->reference().resolve(base_uri), Json(value_));
         }
@@ -1308,7 +1310,7 @@ namespace jsonschema {
         {
         }
 
-        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& schemas) const final 
+        keyword_validator_type make_validator(const uri& base_uri, schema_registry<Json>& /*schemas*/) const final
         {
             return jsoncons::make_unique<const_validator<Json>>(this->reference().resolve(base_uri), Json(value_));
         }

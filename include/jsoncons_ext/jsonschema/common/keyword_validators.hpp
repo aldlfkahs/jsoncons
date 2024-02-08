@@ -37,6 +37,54 @@ namespace jsonschema {
         }
     };
 
+
+    template <class Json>
+    class ref_validator : public keyword_validator<Json>
+    {
+        using keyword_validator_type = std::unique_ptr<keyword_validator<Json>>;
+        using schema_validator_type = std::unique_ptr<schema_validator<Json>>;
+
+        uri base_uri_;
+        schema_validator_type referred_schema_;
+
+    public:
+        ref_validator(const uri& base_uri, schema_validator_type&& target)
+            : base_uri_(base_uri), referred_schema_(std::move(target)) {}
+
+        uri get_base_uri() const
+        {
+            return base_uri_;
+        }
+
+        const uri& reference() const override
+        {
+            static uri s = uri("#");
+            return referred_schema_ ? referred_schema_->reference() : s;
+        }
+
+    private:
+
+        void do_validate(const Json& instance, 
+            const jsonpointer::json_pointer& instance_location,
+            std::unordered_set<std::string>& evaluated_properties, 
+            error_reporter& reporter, 
+            Json& patch) const override
+        {
+            if (!referred_schema_)
+            {
+                reporter.error(validation_output("", 
+                                                 this->reference(), 
+                                                 instance_location.to_uri_fragment(), 
+                                                 "Unresolved schema reference " + this->reference().string()));
+                return;
+            }
+
+            std::cout << "ref_validator::do_validate" << "\n\n";
+            referred_schema_->validate(instance, instance_location, evaluated_properties, reporter, patch);
+        }
+    };
+
+
     // contentEncoding
 
     template <class Json>
